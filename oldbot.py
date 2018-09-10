@@ -18,7 +18,7 @@ MCLIENT = None
 MDB = None
 INFOTEXT = None
 WELCOMETEXT = None
-
+asdf = 1
 
 def checkValidCommand(text, username):
     text = text.split()[0]
