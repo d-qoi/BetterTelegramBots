@@ -63,12 +63,13 @@ Main Menu for Admin Groups
 
 Database:
 
-Config:
+group_config:
 {
     "group_id":int,
-    "admin_group":int,
-    "welcome message": string,
-    "rules message": string,
+    "group_title":string
+    "master_group":int,
+    "welcome": string,
+    "rules": string,
     "admins": [int],
     "alerts":[int], # @admin:0, etc
     "flood_stkr":int,

@@ -4,8 +4,10 @@ import string
 from random import choices
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler
-from telegram.ext.filters import Filters, BaseFilter
+from telegram.ext.filters import Filters
 from pymongo.collection import ReturnDocument
+
+from customFilters import MGFilter
 
 
 class MasterGroupHandler(object):
@@ -34,31 +36,6 @@ Admin Group Link: %s
 Other Group Link: %s
 """
 
-    class MGFilter(BaseFilter):
-        name = "master_group_filter"
-        group_id = None
-        global_config = None
-
-        logger = logging.getLogger(__name__)
-
-        def __init__(self, global_config):
-            self.logger.debug("Initializing")
-            self.global_config = global_config
-            self._update_cache()
-
-        def _update_cache(self):
-            if not self.group_id:
-                self.logger.debug("Ampting to update cache")
-                res = self.global_config.find_one()
-                if res:
-                    self.group_id = res['group']
-                    self.logger.debug("Cache Updated: %d" % self.group_id)
-
-        def filter(self, message):
-            self.logger.debug("Filtering message: %s" % str(message))
-            self._update_cache()
-            return message.chat.id == self.group_id
-
     def __init__(self, dp, bot, MDB):
         self.bot = bot
         self.MDB = MDB
@@ -66,13 +43,13 @@ Other Group Link: %s
 
         self.master_group = self.MDB.master_group
 
-        mgf = self.MGFilter(self.MDB.global_config)
+        mgf = MGFilter(self.MDB.global_config)
 
         self.logger.info("Initializing")
         dp.add_handler(CommandHandler("setmastergroupplz", self.set_master_group))
         dp.add_handler(CommandHandler("get_group_links", self.welcome_new_member,
                                       filters=mgf))
-        dp.add_handler(MessageHandler(Filters.status_update & mgf, self.welcome_new_member))
+        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & mgf, self.welcome_new_member))
         dp.add_handler(CallbackQueryHandler(self.group_link_handler,
                                             pattern="mgh (cal|col) (-?[0-9]+) ([0-9]+)",
                                             pass_groups=True))
@@ -93,12 +70,15 @@ Other Group Link: %s
         self.logger.warn("master group set to: %s" % str(update.effective_chat))
 
     def welcome_new_member(self, bot, update):
-        self.logger.info("welcome_new_member called for: %s" % str(update.effective_user))
-        chat_user_id = "%d %d" % (update.effective_chat.id, update.effective_user.id)
+        if update.message.new_chat_members:
+            user = update.message.new_chat_members[0]
+        else:
+            user = update.effective_user
+        self.logger.info("welcome_new_member called for: %s" % str(user))
 
-        res = self.master_group.find_one({"admin_id": update.effective_user.id})
+        res = self.master_group.find_one({"admin_id": user.id})
         if not res:
-            res = {"admin_id": update.effective_user.id}
+            res = {"admin_id": user.id}
             self.master_group.insert_one(res)
         else:
             if 'link_msg_id' in res:
@@ -107,10 +87,12 @@ Other Group Link: %s
                 bot.edit_message_text("Please use new message", chat_id=chat_id, message_id=msg_id)
 
         text = self.WELCOMETEXT % (self.bot.name,
-                                   update.effective_user.first_name,
-                                   update.effective_user.last_name,
+                                   user.first_name,
+                                   user.last_name,
                                    res.get('admin_group_link', ''),
                                    res.get('other_group_link', ''))
+
+        chat_user_id = "%d %d" % (update.effective_chat.id, user.id)
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Create Admin Group Link",
                                   callback_data="mgh cal %s" % (chat_user_id))],
@@ -118,7 +100,7 @@ Other Group Link: %s
                                   callback_data="mgh col %s" % (chat_user_id))]])
         new_msg = update.message.reply_text(text, reply_markup=markup)
 
-        res = self.master_group.update_one({"admin_id": update.effective_user.id},
+        res = self.master_group.update_one({"admin_id": user.id},
                                            {"$set": {"link_msg_id": new_msg.message_id}})
 
     def group_link_handler(self, bot, update, groups):
