@@ -33,6 +33,21 @@ class MGFilter(BaseFilter):
 
 
 class GroupAddCheckFilter(BaseFilter):
+    """
+    This filter probably should not exist in this state
+
+    This filter is desigend to take care of adding a group as
+    either an admin group or other group.
+
+    Not entirely sure why I thought it was a good idea to do this work
+    in a filter, but it should work just fine.
+
+    It will cause a lot of requests to hit Mongo all at once, but it shouldn't
+    matter with the number of people who will be using this bot.
+
+    Joining both of the checks and additions here will make it possible
+    to seperate out the adminGroupHandler and the otherGroupHandler.
+    """
     name = "Group Add Check Filter"
     pattern = re.compile("^[" + string.digits + string.ascii_letters + "]+$")
 
