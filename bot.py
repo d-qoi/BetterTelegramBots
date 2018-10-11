@@ -4,25 +4,22 @@ from pymongo import MongoClient
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler, Job
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)',
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from adminGroupHandler import AdminGroupHandler
+from masterGroupHandler import MasterGroupHandler
 
 # Globals
 AUTHTOKEN = None
 MCLIENT = None
 MDB = None
-INFOTEXT = None
-WELCOMETEXT = None
 
 def start():
     pass
 
 def info():
-    pass
-
-def start_from_cli():
     pass
 
 def main():
@@ -37,6 +34,12 @@ def main():
 
     dp = updater.dispatcher
 
+    agh = AdminGroupHandler(dp, updater.bot, MDB)
+    mhg = MasterGroupHandler(dp, updater.bot, MDB)
+
+    updater.start_polling()
+    updater.idle()
+
 def startFromCLI():
     global AUTHTOKEN, MCLIENT, MDB, INFOTEXT, WELCOMETEXT
     parser = argparse.ArgumentParser()
@@ -45,16 +48,12 @@ def startFromCLI():
     logLevel = {'none':logging.NOTSET,'debug':logging.DEBUG,'info':logging.INFO,'warn':logging.WARNING}
     parser.add_argument('-muri','--MongoURI', default='mongodb://localhost:27017', help="The MongoDB URI for connection and auth")
     parser.add_argument('-mdb','--MongoDB', default='feedbackbot', help="The MongoDB Database that this will use")
-    parser.add_argument('-i','--InfoText',default=" ", help='A "quoted" string containing a bit of text that will be displayed when /info is called')
-    parser.add_argument('-w','--WelcomeText', default = 'Welcome! Please PM this bot to give feedback.', help='A "quoted" string containing a bit of text that will be displayed when a user joins.')
     args = parser.parse_args()
 
     logger.setLevel(logLevel[args.llevel])
     AUTHTOKEN = args.auth
     MCLIENT = MongoClient(args.MongoURI)
     MDB = MCLIENT[args.MongoDB]
-    INFOTEXT = args.InfoText # + "\n\nBot created by @YTKileroy"
-    WELCOMETEXT = args.WelcomeText
 
 if __name__ == "__main__":
     startFromCLI()

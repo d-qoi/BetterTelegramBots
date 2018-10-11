@@ -1,0 +1,93 @@
+* Welcome message received (is going to be group or super group)
+1. Check to see if the admins of the group are registered
+   - If any of them are registered, make sure they are the <Main Admin>
+   - If none of them are the <Main Admin>
+     - Ask them to talk to @ytkileroy to add them to the main admin group
+
+2. Send a welcome message with an inline button that will register the user to the chat.
+   - Must say something like "Click this to be registered. Will account for lurkers"
+
+2. If it is to the main admin group:
+   - Register them as the main admin.
+
+
+
+* Message received
+ 1. Is group or super group:
+    - Register the user as a user of that group.
+ 2. Is private chat.
+    - Check to see if a conversation involving that user has been started
+      - Continue conversation
+    - Start a conversation.
+
+    * Will need to allow for multiple conversations if there are multiple groups the user is part of.
+
+
+Menu for the Main Admin Chat
+1. If they are new:
+   - Give command to send (or message to foward) to their own admin groups, needs to be created if it isn't already.
+
+Command received for admin group:
+1. Register user as an Admin, prompt them to
+2. Prompt give them the main menu tied to their user id.
+
+
+
+
+
+Main Menu for Admin Groups
+1. Set Admins
+   - List of all registered in the group by username, in stars if they are an admin
+   - Clicking on a name will change the name to confirm add or confirm remove
+   - Arrows and back at bottom.
+2. Set Notifications
+   - @admin
+   - messages that are asking for an admin
+   - flood notifications
+   - user join alerts
+3. Group Settings
+   - which group?
+     - Set Welcome message
+     - Set Rules message
+     - Set Allerts for flood or bot detection
+4. Set Blacklists
+   - Stickers
+   - Links
+   - admins allowed to ignore
+5. Set Flood Limits
+   - Number of images per hour/minute
+   - number of messages per minute
+   - number of stickers
+   - number of links
+6. Close Menu
+
+Database:
+
+Config:
+{
+    "group_id":int,
+    "admin_group":int,
+    "welcome message": string,
+    "rules message": string,
+    "admins": [int],
+    "alerts":[int], # @admin:0, etc
+    "flood_stkr":int,
+    "flood_msg":int,
+    "flood_link":int,
+    "flood_img":int,
+}
+
+master_group:
+{
+    "group_id":int,
+    "admin_id":int,
+    "admin_group_link":string,
+    "other_group_link":string,
+    "link_msg_id":int
+}
+
+
+global_config:
+{
+    "group":id
+}
