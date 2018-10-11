@@ -34,7 +34,7 @@ def main():
 
     dp = updater.dispatcher
 
-    agh = AdminGroupHandler(dp, updater.bot, MDB)
+#    agh = AdminGroupHandler(dp, updater.bot, MDB)
     mhg = MasterGroupHandler(dp, updater.bot, MDB)
 
     updater.start_polling()
