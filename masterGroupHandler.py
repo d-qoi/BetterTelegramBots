@@ -39,17 +39,23 @@ Other Group Link: %s
         group_id = None
         global_config = None
 
+        logger = logging.getLogger(__name__)
+
         def __init__(self, global_config):
+            self.logger.debug("Initializing")
             self.global_config = global_config
             self._update_cache()
 
         def _update_cache(self):
             if not self.group_id:
+                self.logger.debug("Ampting to update cache")
                 res = self.global_config.find_one()
                 if res:
                     self.group_id = res['group']
+                    self.logger.debug("Cache Updated: %d" % self.group_id)
 
         def filter(self, message):
+            self.logger.debug("Filtering message: %s" % str(message))
             self._update_cache()
             return message.chat.id == self.group_id
 
@@ -62,6 +68,7 @@ Other Group Link: %s
 
         mgf = self.MGFilter(self.MDB.global_config)
 
+        self.logger.info("Initializing")
         dp.add_handler(CommandHandler("setmastergroupplz", self.set_master_group))
         dp.add_handler(CommandHandler("get_group_links", self.welcome_new_member,
                                       filters=mgf))
@@ -69,11 +76,13 @@ Other Group Link: %s
         dp.add_handler(CallbackQueryHandler(self.group_link_handler,
                                             pattern="mgh (cal|col) (-?[0-9]+) ([0-9]+)",
                                             pass_groups=True))
+        self.logger.info("Done Initializing")
 
     def _gen_password(self):
         return ''.join(choices(string.ascii_letters + string.digits, k=20))
 
     def set_master_group(self, bot, update):
+        self.logger.warn("Set_master_group called")
         res = self.MDB.global_config.find_one({})
         if res:
             return
@@ -81,8 +90,10 @@ Other Group Link: %s
             "group": update.effective_chat.id
             })
         update.message.reply_text("Master Group Set")
+        self.logger.warn("master group set to: %s" % str(update.effective_chat))
 
     def welcome_new_member(self, bot, update):
+        self.logger.info("welcome_new_member called for: %s" % str(update.effective_user))
         chat_user_id = "%d %d" % (update.effective_chat.id, update.effective_user.id)
 
         res = self.master_group.find_one({"admin_id": update.effective_user.id})
@@ -111,6 +122,7 @@ Other Group Link: %s
                                            {"$set": {"link_msg_id": new_msg.message_id}})
 
     def group_link_handler(self, bot, update, groups):
+        self.logger.debug("Group Link Handler called with groups: %s" % str(groups))
         password = self._gen_password()
         user_id = update.effective_user.id
         chat_id = update.effective_chat.id
@@ -130,8 +142,10 @@ Other Group Link: %s
                                                         return_document=ReturnDocument.AFTER)
         else:
             update.callback_query.message.reply_text("Something went wrong in group_link_handler", quote=False)
+            self.logger.error("Something went really wrong in group_link_handler: %s" % str(groups))
         if not res:
             update.callback_query.message.reply_text("No master_group found for group.", quote=False)
+            self.logger.error("No master_group found for user clocking link: %s" % str(update.effective_user))
             update.callback_query.answer()
             return
 
@@ -148,6 +162,3 @@ Other Group Link: %s
                                   callback_data="mgh col %s" % (chat_user_id))]])
         update.callback_query.message.edit_text(text, reply_markup=markup)
         update.callback_query.answer()
-
-    def admin_group_link_handler(self, bot, update, groups):
-        pass
