@@ -1,8 +1,9 @@
 import logging
 import argparse
 import sys
+import json
 
-from telegram import Bot
+from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import InvalidToken
 
