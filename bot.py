@@ -84,4 +84,5 @@ if __name__ == '__main__':
         logger.error("Invalid token")
         sys.exit(1)
 
-    app.run(host=URL, port=PORT, ssl=PRIV, workers=5)
+    ssl = {'cert': PUB, 'key': PRIV}
+    app.run(host=URL, port=PORT, ssl=ssl, workers=5)
