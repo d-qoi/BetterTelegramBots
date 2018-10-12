@@ -74,12 +74,12 @@ if __name__ == '__main__':
     parser.add_argument('priv', type=str, help="private key")
     parser.add_argument('pub', type=str, help="public key")
     args = parser.parse_args()
-    res = newEntery(args.auth)
     URL = args.url
     PORT = args.port
     PRIV = args.priv
     PUB = args.pub
 
+    res = newEntery(args.auth)
     if not res:
         logger.error("Invalid token")
         sys.exit(1)
