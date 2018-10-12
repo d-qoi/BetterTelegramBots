@@ -57,6 +57,10 @@ def newEntery(token):
                         certificate=cert)
 
     BOT_LIST[token] = (dp, update_queue)
+
+    logger.info("bot info")
+    logger.info("webhook: %s" % str(bot.get_webhook_info()))
+    logger.info("bot info: %s" % str(bot.get_me()))
     return True
 
 
