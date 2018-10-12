@@ -54,6 +54,8 @@ class GroupAddCheckFilter(BaseFilter):
     master_group = None
     group_config = None
 
+    logger = logging.getLogger(__name__)
+
     def __init__(self, master_group, group_config):
         self.logger.debug("Initializing")
         self.master_group = master_group
@@ -102,3 +104,31 @@ class GroupAddCheckFilter(BaseFilter):
         else:
             self.logger.error("Error in mongoDB lookup")
             return False
+
+
+class CheckAdminGroup(BaseFilter):
+    name = "Check Admin Group"
+
+    master_group = None
+    logger = logging.getLogger(__name__)
+
+    def __init__(self, master_group):
+        self.logger.debug("Initializing")
+        self.master_group = master_group
+
+    def filter(self, message):
+        return bool(self.master_group.find_one({"group_id": message.chat.id}))
+
+
+class CheckOtherGroup(BaseFilter):
+    name = "Check Other Group"
+
+    group_config = None
+    logger = logging.getLogger(__name__)
+
+    def __init__(self, group_config):
+        self.logger.debug("Initializing")
+        self.group_config = group_config
+
+    def filter(self, message):
+        return bool(self.group_config.find_one({"group_id": message.chat.id}))

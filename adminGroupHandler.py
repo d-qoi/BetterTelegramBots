@@ -1,17 +1,18 @@
 import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler
+from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler
 from telegram.ext.filters import Filters
 
+from customFilters import GroupAddCheckFilter, CheckAdminGroup
 
 class AdminGroupHandler(object):
     BOT = None
     MDB = None
     DP = None
 
-    admins_col = None
-    config_col = None
+    self.master_group = None
+    self.group_config = None
 
     logger = logging.getLogger(__name__)
 
@@ -20,13 +21,16 @@ class AdminGroupHandler(object):
         self.MDB = MDB
         self.DB = dp
 
-        self.admins_col = self.MDB.admins
-        self.config_col = self.MDB.config_col
+        self.master_group = self.MDB.master_group
+        self.group_config = self.MDB.group_config
 
-        dp.add_handler(CommandHandler('set_admin_group', self.setAdminGroup,
-                                      filters=Filters.group))
+        gacf = GroupAddCheckFilter(self.master_group, self.group_config)
+        cag = CheckAdminGroup(self.master_group)
 
-        dp.add_handler(CommandHandler('config', self.config))
+        dp.add_handler(MessageHandler(Filters.status_update.new_chat_member & gacf,
+                                      self.welcome_new_member))
+
+        dp.add_handler(CommandHandler('config', self.config, filters=cag))
 
         dp.add_handler(CallbackQueryHandler(self.setAdminsCallback,
                                             pattern="agh sa (-?[0-9]+) ([0-9]+)",
@@ -48,6 +52,18 @@ class AdminGroupHandler(object):
         keyboard.append([
             InlineKeyboardButton("Set notifications",
                                  callback_data="agh sn %s" % chat_user_id)
+        ])
+        keyboard.append([
+            InlineKeyboardButton("Group Settings",
+                                 callback_data="agh gs %s" % chat_user_id)
+        ])
+        keyboard.append([
+            InlineKeyboardButton("Set Black/White lists",
+                                 callback_data="agh sbl %s" % chat_user_id)
+        ])
+        keyboard.append([
+            InlineKeyboardButton("Set Flood Limits",
+                                 callback_data="agh sfl %s" % chat_user_id)
         ])
         keyboard.append([
             InlineKeyboardButton("Close config",
