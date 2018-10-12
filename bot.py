@@ -67,22 +67,20 @@ async def webhook(request, token):
     logger.info("Token: %s" % token)
 
 if __name__ == '__main__':
-    global BOT_LIST, URL, PORT, PRIV, PUB
     parser = argparse.ArgumentParser()
     parser.add_argument('auth', type=str, help="The Auth Token given by Telegram's @botfather")
     parser.add_argument('url', type=str, help="url that connects the bot to the rest of the world")
     parser.add_argument('port', type=int, help="port for the url", default=8443)
     parser.add_argument('priv', type=str, help="private key")
     parser.add_argument('pub', type=str, help="public key")
-    res = newEntery(parser.auth)
-    URL = parser.url
-    PORT = parser.port
-    PRIV = parser.priv
-    PUB = parser.pub
+    args = parser.parse_args()
+    res = newEntery(args.auth)
+    URL = args.url
+    PORT = args.port
+    PRIV = args.priv
+    PUB = args.pub
 
-    if res:
-        BOT_LIST.append(res)
-    else:
+    if not res:
         logger.error("Invalid token")
         sys.exit(1)
 
