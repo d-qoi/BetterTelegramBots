@@ -68,6 +68,11 @@ def newEntery(token):
 async def test(request):
     return response.json({"test": True})
 
+@app.route("/exit")
+async def test(request):
+    sys.exit(0)
+
+
 @app.route("/<token>", methods=["POST"])
 async def webhook(request, token):
     logger.info("Webhook received")
