@@ -77,9 +77,10 @@ async def test(request):
 async def webhook(request, token):
     logger.info("Webhook received")
     logger.info("Request: %s" % str(request))
+    logger.info("Request Json: %s" % str(request.json))
     logger.info("Token: %s" % token)
 
-    return response.HTTPResponse()
+    return response.json({})
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
