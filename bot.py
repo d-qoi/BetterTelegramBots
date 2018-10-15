@@ -93,4 +93,4 @@ if __name__ == '__main__':
         sys.exit(1)
 
     ssl = {'cert': PUB, 'key': PRIV}
-    app.run(host=URL, port=PORT, ssl=ssl, workers=5)
+    app.run(host='0.0.0.0', port=PORT, ssl=ssl, workers=5)
