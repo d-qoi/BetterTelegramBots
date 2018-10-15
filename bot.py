@@ -8,6 +8,7 @@ from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import InvalidToken
 
 from sanic import Sanic
+from sanic import response
 
 from queue import Queue
 
@@ -63,6 +64,9 @@ def newEntery(token):
     logger.info("bot info: %s" % str(bot.get_me()))
     return True
 
+@app.route("/")
+async def test(request):
+    return response.json({"test": True})
 
 @app.route("/<token>", methods=["POST"])
 async def webhook(request, token):
