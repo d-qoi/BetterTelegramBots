@@ -79,6 +79,8 @@ async def webhook(request, token):
     logger.info("Request: %s" % str(request))
     logger.info("Token: %s" % token)
 
+    return response.HTTPResponse()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('auth', type=str, help="The Auth Token given by Telegram's @botfather")
