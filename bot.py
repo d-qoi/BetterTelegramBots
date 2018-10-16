@@ -1,7 +1,7 @@
 import logging
 import argparse
 import sys
-import json
+import ujson
 
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler
@@ -82,7 +82,8 @@ async def webhook(request, token):
 
     logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
 
-    return response.json({})
+    BOT_LIST[token][1].put(Update.de_json(request.json))
+    return response.json({}, headers={"charset":"utf-8"})
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
