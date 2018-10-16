@@ -80,7 +80,7 @@ async def webhook(request, token):
     logger.info("Request Json: %s" % str(request.json))
     logger.info("Token: %s" % token)
 
-    logger.info("bot status: %s" % str(BOT_LIST[token].bot.get_webhook_info()))
+    logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
 
     return response.json({})
 
