@@ -66,10 +66,7 @@ def newEntery(token):
 
 @app.route("/")
 async def test(request):
-    resp = []
-    for thing in BOT_LIST:
-        resp.append(thing[0].bot.get_webhook_info())
-    return response.json({"test": resp})
+    return response.json({"test": "test"})
 
 @app.route("/exit")
 async def test(request):
@@ -82,6 +79,8 @@ async def webhook(request, token):
     logger.info("Request: %s" % str(request))
     logger.info("Request Json: %s" % str(request.json))
     logger.info("Token: %s" % token)
+
+    logger.info("bot status: %s" % str(BOT_LIST[token].bot.get_webhook_info()))
 
     return response.json({})
 
