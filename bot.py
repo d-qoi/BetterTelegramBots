@@ -66,7 +66,10 @@ def newEntery(token):
 
 @app.route("/")
 async def test(request):
-    return response.json({"test": True})
+    resp = []
+    for thing in BOT_LIST:
+        resp.append(thing[0].bot.get_webhook_info())
+    return response.json({"test": resp})
 
 @app.route("/exit")
 async def test(request):
