@@ -9,6 +9,7 @@ from telegram.error import InvalidToken
 
 from sanic import Sanic
 from sanic import response
+from sanic.exceptions import Forbidden
 
 from queue import Queue
 
@@ -74,9 +75,12 @@ async def test(request):
     sys.exit(0)
 
 
+
 @app.route("/<token>", methods=["POST"])
 async def webhook(request, token):
     logger.info("Webhook received")
+    if token not in BOT_LIST:
+        raise Forbidden()
     logger.info("Request: %s" % str(request))
     logger.info("Request Json: %s" % str(request.json))
     logger.info("Token: %s" % token)
@@ -84,7 +88,7 @@ async def webhook(request, token):
     logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
 
     BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0]))
-    return response.json({}, headers={"charset":"utf-8"})
+    return response.text("OK")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
