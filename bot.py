@@ -82,7 +82,7 @@ async def webhook(request, token):
 
     logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
 
-    BOT_LIST[token][1].put(Update.de_json(request.json))
+    BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0]))
     return response.json({}, headers={"charset":"utf-8"})
 
 if __name__ == '__main__':
@@ -103,5 +103,6 @@ if __name__ == '__main__':
         logger.error("Invalid token")
         sys.exit(1)
 
+    app.config.KEEP_ALIVE = False
     ssl = {'cert': PUB, 'key': PRIV}
     app.run(host='0.0.0.0', port=PORT, ssl=ssl, workers=5)
