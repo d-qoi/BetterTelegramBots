@@ -13,6 +13,7 @@ from sanic import response
 from queue import Queue
 
 app = Sanic(__name__)
+app.config.KEEP_ALIVE = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -103,6 +104,5 @@ if __name__ == '__main__':
         logger.error("Invalid token")
         sys.exit(1)
 
-    app.config.KEEP_ALIVE = False
     ssl = {'cert': PUB, 'key': PRIV}
-    app.run(host='0.0.0.0', port=PORT, ssl=ssl, workers=5)
+    app.run(host='0.0.0.0', port=PORT, ssl=ssl, workers=5, debug=True)
