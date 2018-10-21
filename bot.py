@@ -2,6 +2,7 @@ import logging
 import argparse
 import sys
 import ujson
+from threading import Thread
 
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler
@@ -59,8 +60,9 @@ def newEntery(token):
         bot.set_webhook(url=webhook_url,
                         certificate=cert)
 
-    BOT_LIST[token] = (dp, update_queue)
-    dp.start()
+    thread = Thread(target=dispatcher.start, name='dp_%s'%token.split(':')[0])
+    thread.start()
+    BOT_LIST[token] = (dp, update_queue, thread)
 
     logger.info("bot info")
     logger.info("webhook: %s" % str(bot.get_webhook_info()))
