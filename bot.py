@@ -8,7 +8,7 @@ from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import InvalidToken
 
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Resource, Api
 
 from queue import Queue
@@ -79,14 +79,17 @@ def webhook(token):
     logger.info("Webhook received")
     if token not in BOT_LIST:
         raise Forbidden()
+    logger.info("--------------------------------------------------")
     logger.info("Request: %s" % str(request))
     logger.info("Request Json: %s" % str(request.json))
     logger.info("Token: %s" % token)
 
     logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
-
-    #BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0]))
+    logger.info("Decoded update: %s" % str(Update.de_json(request.json, BOT_LIST[token][0].bot)))
+    
+    BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0].bot))
     #return response.text("OK")
+    return 'ok'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
