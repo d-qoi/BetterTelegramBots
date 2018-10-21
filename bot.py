@@ -8,10 +8,12 @@ from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import InvalidToken
 
 from flask import Flask
+from flask_restful import Resource, Api
 
 from queue import Queue
 
 app = Flask(__name__)
+api = Api(app)
 #app.config.KEEP_ALIVE = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -66,12 +68,12 @@ def newEntery(token):
     return True
 
 @app.route("/")
-async def test(request):
+def test(request):
     return response.json({"test": "test"})
 
 
 @app.route("/<token>", method=["POST"])
-async def webhook(token):
+def webhook(token):
     logger.info("Webhook received")
     if token not in BOT_LIST:
         raise Forbidden()
