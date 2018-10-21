@@ -72,7 +72,7 @@ def test(request):
     return response.json({"test": "test"})
 
 
-@app.route("/<token>", method=["POST"])
+@app.route("/<token>", methods=["POST"])
 def webhook(token):
     logger.info("Webhook received")
     if token not in BOT_LIST:
