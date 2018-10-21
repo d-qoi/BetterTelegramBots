@@ -7,14 +7,12 @@ from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import InvalidToken
 
-from sanic import Sanic
-from sanic import response
-from sanic.exceptions import Forbidden
+from flask import Flask
 
 from queue import Queue
 
-app = Sanic(__name__)
-app.config.KEEP_ALIVE = False
+app = Flask(__name__)
+#app.config.KEEP_ALIVE = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -60,6 +58,7 @@ def newEntery(token):
                         certificate=cert)
 
     BOT_LIST[token] = (dp, update_queue)
+    dp.start()
 
     logger.info("bot info")
     logger.info("webhook: %s" % str(bot.get_webhook_info()))
@@ -70,14 +69,9 @@ def newEntery(token):
 async def test(request):
     return response.json({"test": "test"})
 
-@app.route("/exit")
-async def test(request):
-    sys.exit(0)
 
-
-
-@app.route("/<token>", methods=["POST"])
-async def webhook(request, token):
+@app.route("/<token>", method=["POST"])
+async def webhook(token):
     logger.info("Webhook received")
     if token not in BOT_LIST:
         raise Forbidden()
@@ -87,8 +81,8 @@ async def webhook(request, token):
 
     logger.info("bot status: %s" % str(BOT_LIST[token][0].bot.get_webhook_info()))
 
-    BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0]))
-    return response.text("OK")
+    #BOT_LIST[token][1].put(Update.de_json(request.json, BOT_LIST[token][0]))
+    #return response.text("OK")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -109,4 +103,4 @@ if __name__ == '__main__':
         sys.exit(1)
 
     ssl = {'cert': PUB, 'key': PRIV}
-    app.run(host='0.0.0.0', port=PORT, ssl=ssl, workers=5, debug=True)
+    app.run(host='0.0.0.0', port=PORT, ssl_context=ssl)
