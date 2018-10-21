@@ -60,7 +60,7 @@ def newEntery(token):
         bot.set_webhook(url=webhook_url,
                         certificate=cert)
 
-    thread = Thread(target=dispatcher.start, name='dp_%s'%token.split(':')[0])
+    thread = Thread(target=dp.start, name='dp_%s'%token.split(':')[0])
     thread.start()
     BOT_LIST[token] = (dp, update_queue, thread)
 
