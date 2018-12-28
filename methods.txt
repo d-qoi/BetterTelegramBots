@@ -1,3 +1,9 @@
+master_group_handlers are all 3
+admin_group_handlers are all 2
+group handlers are all 1
+DMs are all 0
+
+
 * Welcome message received (is going to be group or super group)
 1. Check to see if the admins of the group are registered
    - If any of them are registered, make sure they are the <Main Admin>
@@ -23,7 +29,7 @@
     * Will need to allow for multiple conversations if there are multiple groups the user is part of.
 
 
-Menu for the Main Admin Chat
+Menu for the Master Admin Chat
 1. If they are new:
    - Give command to send (or message to foward) to their own admin groups, needs to be created if it isn't already.
 
@@ -37,7 +43,7 @@ Command received for admin group:
 
 Main Menu for Admin Groups
 1. Set Admins
-   - List of all registered in the group by username, in stars if they are an admin
+   - List of all registered in admin group by username, in stars if they are an admin
    - Clicking on a name will change the name to confirm add or confirm remove
    - Arrows and back at bottom.
 2. Set Notifications
@@ -63,10 +69,11 @@ Main Menu for Admin Groups
 
 Database:
 
+/// General groups
 group_config:
 {
     "group_id":int,
-    "group_title":string
+    "group_title":string,
     "master_group":int,
     "welcome": string,
     "rules": string,
@@ -78,6 +85,7 @@ group_config:
     "flood_img":int,
 }
 
+/// admin groups
 master_group:
 {
     "group_id":int,
@@ -87,8 +95,21 @@ master_group:
     "link_msg_id":int
 }
 
+bots:
+{
+    parent_group:int
+    bot_id:string
+}
+
 
 global_config:
 {
-    "group":id
+    "group":id /// for master admin group
+}
+
+users:
+{
+    user_id:int
+    user_name:string
+    groups:[int]
 }

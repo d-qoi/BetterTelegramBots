@@ -26,7 +26,7 @@ Clicking the button will create a single use code.
 
 Sending this code to a group will set the group as either your admin group or a group you would like this bot to act in.
 
-You will need to create a new code to add another group.
+You will need to create a new code to add another group, and you need to send the message to the group.
 
 Only one admin of the admin group should be in this chat. If that admin needs to change, talk to @ytkileroy.
 
@@ -48,11 +48,15 @@ Other Group Link: %s
         self.logger.info("Initializing")
         dp.add_handler(CommandHandler("setmastergroupplz", self.set_master_group))
         dp.add_handler(CommandHandler("get_group_links", self.welcome_new_member,
-                                      filters=mgf))
-        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & mgf, self.welcome_new_member))
+                                      filters=mgf,
+                                      group=3))
+        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & mgf,
+                                      self.welcome_new_member,
+                                      group=3))
         dp.add_handler(CallbackQueryHandler(self.group_link_handler,
                                             pattern="mgh (cal|col) (-?[0-9]+) ([0-9]+)",
-                                            pass_groups=True))
+                                            pass_groups=True,
+                                            group=3))
         self.logger.info("Done Initializing")
 
     def _gen_password(self):

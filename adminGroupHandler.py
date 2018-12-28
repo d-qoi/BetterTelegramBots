@@ -6,44 +6,59 @@ from telegram.ext.filters import Filters
 
 from customFilters import GroupAddCheckFilter, CheckAdminGroup
 
+
 class AdminGroupHandler(object):
     BOT = None
     MDB = None
     DP = None
 
-    self.master_group = None
-    self.group_config = None
+    master_group = None
+    group_config = None
 
     logger = logging.getLogger(__name__)
 
+    admin_group_welcome_text = """
+This group is now set as an admin group.
+
+If you want this bot to work in your groups remember to add me to the group, or add your own bot and send the bot's code to me.
+
+Send /config to change settings for all of your chats.
+"""
     def __init__(self, dp, bot, MDB):
         self.BOT = bot
         self.MDB = MDB
         self.DB = dp
 
-        self.master_group = self.MDB.master_group
+        self.master_goroup = self.MDB.master_group
         self.group_config = self.MDB.group_config
 
         gacf = GroupAddCheckFilter(self.master_group, self.group_config)
         cag = CheckAdminGroup(self.master_group)
 
         dp.add_handler(MessageHandler(Filters.status_update.new_chat_member & gacf,
-                                      self.welcome_new_member))
+                                      self.welcome_new_chat),
+                       group=2)
 
-        dp.add_handler(CommandHandler('config', self.config, filters=cag))
+        dp.add_handler(CommandHandler('config',
+                                      self.config,
+                                      filters=cag),
+                       group=2)
 
         dp.add_handler(CallbackQueryHandler(self.setAdminsCallback,
-                                            pattern="agh sa (-?[0-9]+) ([0-9]+)",
-                                            pass_groups=True), group=1)
+                                            pattern="agh sa (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pass_groups=True),
+                       group=2)
         dp.add_handler(CallbackQueryHandler(self.setNotificationsCallback,
-                                            pattern="agh sn (-?[0-9]+) ([0-9]+)",
-                                            pass_groups=True), group=1)
+                                            pattern="agh sn (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pass_groups=True),
+                       group=2)
         dp.add_handler(CallbackQueryHandler(self.closeConfigCallback,
-                                            pattern="agh cc (-?[0-9]+) ([0-9]+)",
-                                            pass_groups=True), group=1)
+                                            pattern="agh cc (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pass_groups=True),
+                       group=2)
 
-    def __createMainMenu(self, chat_id, user_id):
-        chat_user_id = "%d %d" % (chat_id, user_id)
+    def __createMainMenu(self, chat_id, user_id, group_id):
+        chat_user_id = "%d %d %d" % (chat_id, user_id, group_id)
         keyboard = []
         keyboard.append([
             InlineKeyboardButton("Set Admins",
@@ -71,35 +86,42 @@ class AdminGroupHandler(object):
         ])
         return InlineKeyboardMarkup(keyboard)
 
-    def __getAdmins(self, chat_id):
-        result = self.config_col.find_one({'chat_id':chat_id})
-        return result['admins']
+    def __create_chat_select_menu(self, chat_id, user_id, offset):
+        chat_user_id = "%d %d %d" % (chat_id, user_id, offset)
+        result = self.group_config.find({"admins": user_id})
+        keyboard = []
+        if not result:
+            return None
+        for i in range(offset, offset + 10 if offset + 10 < result.count() else result.count()):
+            keyboard.append([
+                InlineKeyboardButton(result[i].group_title,
+                                     callback_data="agh sg %d %s" % (i, chat_user_id))])
 
-    def __getAdminDoc(self, user_id):
-        result = self.admins_col.find_one({'user_id':user_id})
-        return result
+    def setNotificationsCallback(self, bot, update, groups):
+        pass
 
-    def __checkAdminGroupDefined(self):
-        result = self.config_col.find_one({"admin_chat_id":{"$exists":True}})
-        if result:
-            return True
-        return False
+    def setAdminsCallback(self, bot, update, groups):
+        pass
 
-    def setAdminGroup(self, bot, update):
-        if self.__checkAdminGroupDefined():
-            return
-        admin_group = {}
-        admin_group['title'] = update.effective_chat.title
-        admin_group['chat_id'] = update.effective_chat.chat_id
-        admin_group['admins'] = [update.effective_user.id]
-        self.config_col.insert_one(admin_group)
-        self.config_col.insert_one({"admin_chat_id":update.effective_chat.chat_id})
+    def closeConfigCallback(self, bot, update, groups):
+        pass
 
-        update.effective_message.reply_text(
-"""%s has been set as the admin group for %s.
-
-send /config to change the settings of this bot.""" % (
-            update.effective_chat.title, bot.name), quote=False)
+    def welcome_new_chat(self, bot, update):
+        """
+The filter handles checking to make sure the admin_group_link is correct.
+Don't need to check it twice.
+"""
+        message = update.effective_message
+        chat = update.effective_chat
+        self.master_group.find_one_and_update(
+            {
+                "admin_id": message.from_user.id
+            },
+            {
+                "group_id": chat.id,
+                "admin_group_link": ""
+            })
+        update.reply_text(self.admin_group_welcome_text)
 
     def config(self, bot, update):
         user_id = update.effective_user.id
@@ -110,16 +132,3 @@ send /config to change the settings of this bot.""" % (
             update.effective_user.first_name, update.effective_user.last_name)
 
         msg = bot.send_message(chat_id, text, reply_markup=keyboard)
-
-        self.config_col.update_one({"active_admin_config":True},
-                                   {"message_list":{"$addToSet":msg.id}},
-                                   upsert=True)
-
-    def setNotificationsCallback(self, bot, update, groups):
-        pass
-
-    def setAdminsCallback(self, bot, update, groups):
-        pass
-
-    def closeConfigCallback(self, bot, update, groups):
-        pass

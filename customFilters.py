@@ -77,7 +77,8 @@ class GroupAddCheckFilter(BaseFilter):
         self.logger.debug("New Potential Group")
         res = self.master_group.find_one({"$or":
                                           [{"admin_group_link": text},
-                                           {"other_group_link": text}]})
+                                           {"other_group_link": text}],
+                                          "admin_id": message.from_user.id})
         if not res:
             return False
 
