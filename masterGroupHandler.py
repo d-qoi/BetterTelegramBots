@@ -46,7 +46,8 @@ Other Group Link: %s
         mgf = MGFilter(self.MDB.global_config)
 
         self.logger.info("Initializing")
-        dp.add_handler(CommandHandler("setmastergroupplz", self.set_master_group))
+        dp.add_handler(CommandHandler("setmastergroupplz", self.set_master_group),
+                       group=3)
         dp.add_handler(CommandHandler("get_group_links", self.welcome_new_member,
                                       filters=mgf,
                                       group=3))
