@@ -56,10 +56,14 @@ class GroupAddCheckFilter(BaseFilter):
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, master_group, group_config):
+    ADMIN_GROUP = 0
+    OTHER_GROUP = 1
+
+    def __init__(self, master_group, group_config, group_type):
         self.logger.debug("Initializing")
         self.master_group = master_group
         self.group_config = group_config
+        self.group_type = group_type
 
     def filter(self, message):
         text = message.text
@@ -85,7 +89,7 @@ class GroupAddCheckFilter(BaseFilter):
         self.logger.info("New Group Added: %s" % str(res))
         self.logger.debug("New Group Chat: %s" % str(message.chat))
 
-        if res["other_group_link"] == text:
+        if res["other_group_link"] == text and self.group_type is self.OTHER_GROUP:
             gd = {
                 "group_id": message.chat.id,
                 "group_title": message.chat.title,
@@ -95,7 +99,7 @@ class GroupAddCheckFilter(BaseFilter):
             self.logger.debug("New Other Group: %s" % str(gd))
             return True
 
-        elif res['admin_group_link'] == text:
+        elif res['admin_group_link'] == text and self.group_type is self.ADMIN_GROUP:
             self.logger.debug("New Admin Group")
             res = self.master_group.update_one(
                 {"admin_group_link": text},
@@ -103,7 +107,7 @@ class GroupAddCheckFilter(BaseFilter):
             return True
 
         else:
-            self.logger.error("Error in mongoDB lookup")
+            self.logger.error("Error in mongoDB lookup or no group with given link")
             return False
 
 
@@ -112,13 +116,32 @@ class CheckAdminGroup(BaseFilter):
 
     master_group = None
     logger = logging.getLogger(__name__)
+    cache = {}
 
     def __init__(self, master_group):
         self.logger.debug("Initializing")
         self.master_group = master_group
 
+    def check_cache(self, group_id):
+        self.logger.debug("checking cache for %d", group_id)
+        if group_id in self.cache:
+            self.logger.debug("cache hit")
+            return self.cache[group_id]
+        self.cache[group_id] = bool(self.master_group.find_one({"group_id": group_id}))
+        self.logger.debug("cache miss")
+        return self.cache[group_id]
+
+    def clear_cache(self):
+        self.logger.warn("Check Admin Group cache cleared")
+        self.cache.clear()
+
+    def update_cache_for(self, group_id):
+        self.logger.info("Check admin group cache cleared for %d" % group_id)
+        self.cache.pop(group_id, None)
+
     def filter(self, message):
-        return bool(self.master_group.find_one({"group_id": message.chat.id}))
+        self.logger.debug("CheckAdminGroup filter check")
+        return self.check_cache(message.chat.id)
 
 
 class CheckOtherGroup(BaseFilter):
@@ -131,5 +154,23 @@ class CheckOtherGroup(BaseFilter):
         self.logger.debug("Initializing")
         self.group_config = group_config
 
+    def check_cache(self, group_id):
+        self.logger.debug("checking cache for %d", group_id)
+        if group_id in self.cache:
+            self.logger.debug("cache hit")
+            return self.cache[group_id]
+        self.cache[group_id] = bool(self.group_config.find_one({"group_id": group_id}))
+        self.logger.debug("cache miss")
+        return self.cache[group_id]
+
+    def clear_cache(self):
+        self.logger.warn("Check Other Group cache cleared")
+        self.cache.clear()
+
+    def update_cache_for(self, group_id):
+        self.logger.info("Check Other group cache cleared for %d" % group_id)
+        self.cache.pop(group_id, None)
+
     def filter(self, message):
-        return bool(self.group_config.find_one({"group_id": message.chat.id}))
+        self.logger.debug("CheckOtherGroup filter check")
+        return self.check_cache(message.chat.id)

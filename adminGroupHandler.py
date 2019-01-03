@@ -12,7 +12,7 @@ class AdminGroupHandler(object):
     MDB = None
     DP = None
 
-    master_group = None
+    admin_group = None
     group_config = None
 
     logger = logging.getLogger(__name__)
@@ -24,24 +24,29 @@ If you want this bot to work in your groups remember to add me to the group, or 
 
 Send /config to change settings for all of your chats.
 """
+
     def __init__(self, dp, bot, MDB):
         self.BOT = bot
         self.MDB = MDB
         self.DB = dp
 
-        self.master_goroup = self.MDB.master_group
+        self.master_goroup = self.MDB.admin_group
         self.group_config = self.MDB.group_config
 
-        gacf = GroupAddCheckFilter(self.master_group, self.group_config)
-        cag = CheckAdminGroup(self.master_group)
+        self.gacf = GroupAddCheckFilter(self.admin_group, self.group_config, GroupAddCheckFilter.ADMIN_GROUP)
+        self.cag = CheckAdminGroup(self.admin_group)
 
-        dp.add_handler(MessageHandler(Filters.status_update.new_chat_member & gacf,
+        dp.add_handler(MessageHandler(self.gacf,
                                       self.welcome_new_chat),
+                       group=2)
+
+        dp.add_handler(MessageHandler(Filters.new_chat_member & self.cag,
+                                      self.welcome_new_member),
                        group=2)
 
         dp.add_handler(CommandHandler('config',
                                       self.config,
-                                      filters=cag),
+                                      filters=self.cag),
                        group=2)
 
         dp.add_handler(CallbackQueryHandler(self.setAdminsCallback,
@@ -113,7 +118,7 @@ Don't need to check it twice.
 """
         message = update.effective_message
         chat = update.effective_chat
-        self.master_group.find_one_and_update(
+        self.admin_group.find_one_and_update(
             {
                 "admin_id": message.from_user.id
             },
@@ -121,7 +126,11 @@ Don't need to check it twice.
                 "group_id": chat.id,
                 "admin_group_link": ""
             })
+        self.cag.update_cache_for(chat.id)
         update.reply_text(self.admin_group_welcome_text)
+
+    def welcome_new_member(self, bot, update):
+        pass
 
     def config(self, bot, update):
         user_id = update.effective_user.id

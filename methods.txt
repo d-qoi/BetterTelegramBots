@@ -38,9 +38,6 @@ Command received for admin group:
 2. Prompt give them the main menu tied to their user id.
 
 
-
-
-
 Main Menu for Admin Groups
 1. Set Admins
    - List of all registered in admin group by username, in stars if they are an admin
@@ -86,7 +83,7 @@ group_config:
 }
 
 /// admin groups
-master_group:
+admin_group:
 {
     "group_id":int,
     "admin_id":int,
@@ -112,4 +109,13 @@ users:
     user_id:int
     user_name:string
     groups:[int]
+}
+
+message:
+{
+    user_id: int,
+    chat_id: int,
+    msg_id: int,
+    type: string,
+    timestamp
 }
