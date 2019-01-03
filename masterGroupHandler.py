@@ -136,12 +136,12 @@ Admin groups:
 
         if groups[0] == 'col':
             res = self.admin_group.find_one_and_update({"admin_id": update.effective_user.id},
-                                                        {"$set": {"other_group_link": password}},
-                                                        return_document=ReturnDocument.AFTER)
+                                                       {"$set": {"other_group_link": password}},
+                                                       return_document=ReturnDocument.AFTER)
         elif groups[0] == 'cal':
             res = self.admin_group.find_one_and_update({"admin_id": update.effective_user.id},
-                                                        {"$set": {"admin_group_link": password}},
-                                                        return_document=ReturnDocument.AFTER)
+                                                       {"$set": {"admin_group_link": password}},
+                                                       return_document=ReturnDocument.AFTER)
         else:
             update.callback_query.message.reply_text("Something went wrong in group_link_handler", quote=False)
             self.logger.error("Something went really wrong in group_link_handler: %s" % str(groups))

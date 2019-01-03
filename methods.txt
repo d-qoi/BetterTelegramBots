@@ -1,4 +1,4 @@
-master_group_handlers are all 3
+(master_group_handlers are all 3
 admin_group_handlers are all 2
 group handlers are all 1
 DMs are all 0
