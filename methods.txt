@@ -49,10 +49,9 @@ Main Menu for Admin Groups
    - flood notifications
    - user join alerts
 3. Group Settings
-   - which group?
-     - Set Welcome message
-     - Set Rules message
-     - Set Allerts for flood or bot detection
+   - Set Welcome message
+   - Set Rules message
+   - Set Allerts for flood or bot detection
 4. Set Blacklists
    - Stickers
    - Links

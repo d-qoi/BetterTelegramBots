@@ -7,6 +7,32 @@ from telegram.ext.filters import Filters
 from customFilters import GroupAddCheckFilter, CheckAdminGroup
 
 
+# Order of Menus
+"""
+/config -> sends select_group inline menu
+
+select_group inline menu:
+next or previous (agh sg [np] offset chat_id user_id) -> select_group menu
+chat_selected (agh sg chosen_group chat_id user_id) -> group_config menu
+
+group_config menu
+set_admins -> set_admins menu (agh sa chosen_group chat_id user_id)
+set_notifications -> set_notifications menu (agh sn chosen_group chat_id user_id)
+group_settings -> group_settings menu (agh gs chosen_group chat_id user_id)
+set_blacklists -> set_blacklists menu (agh sb chosen_group chat_id user_id)
+set_flood_limits -> set_flood_limits menu (agh sfl chosen_group chat_id user_id)
+close_menu -> (agh cc chosen_group chat_id user_id)
+
+set_admins:
+admins (agh a admin_id chosen_group chat_id user_id) may be too long, double check
+
+set_notifications:
+
+set_admins menu (agh sa
+
+
+"""
+
 class AdminGroupHandler(object):
     BOT = None
     MDB = None
@@ -26,6 +52,9 @@ Send /config to change settings for all of your chats.
 """
     CONFIG_CHAT_SELECT_TEXT = """
 Please select the chat you would like to configure.
+"""
+    MAIN_MENU_TEXT = """
+Main menu for %s
 """
 
     def __init__(self, dp, bot, MDB):
@@ -53,25 +82,27 @@ Please select the chat you would like to configure.
                        group=2)
 
         dp.add_handler(CallbackQueryHandler(self.chooseGroupCallback,
-                                            pattern="agh sg ([0-9]+) ([0-9]+) ([0-9]+)",
+                                            pattern="agh sg (-?[0-9]+) (-?[0-9]+) (-?[0-9]+)",
                                             pass_groups=True),
                        group=2)
 
         dp.add_handler(CallbackQueryHandler(self.chooseGroupSwitchCallback,
-                                            pattern="agh sg [np] ([0-9]+) ([0-9]+) ([0-9]+)",
+                                            pattern="agh sg [np] (-?[0-9]+) (-?[0-9]+) (-?[0-9]+)",
                                             pass_groups=True),
                        group=2)
 
         dp.add_handler(CallbackQueryHandler(self.setAdminsCallback,
-                                            pattern="agh sa (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pattern="agh sa (-?[0-9]+) (-?[0-9]+) (-?[0-9]+)",
                                             pass_groups=True),
                        group=2)
+
         dp.add_handler(CallbackQueryHandler(self.setNotificationsCallback,
-                                            pattern="agh sn (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pattern="agh sn (-?[0-9]+) (-?[0-9]+) (-?[0-9]+)",
                                             pass_groups=True),
                        group=2)
+
         dp.add_handler(CallbackQueryHandler(self.closeConfigCallback,
-                                            pattern="agh cc (-?[0-9]+) ([0-9]+) ([0-9]+)",
+                                            pattern="agh cc (-?[0-9]+) (-?[0-9]+) (-?[0-9]+)",
                                             pass_groups=True),
                        group=2)
 
@@ -81,12 +112,12 @@ Please select the chat you would like to configure.
         if groups[1:] != (str(chat_id), str(user_id)):
             update.callback_query.answer(
                 text="Please use your own group links",
-                show_allert=True)
+                show_alert=True)
             return False
         return True
 
-    def __createMainMenu(self, chat_id, user_id, group_id):
-        chat_user_id = "%d %d %d" % (chat_id, user_id, group_id)
+    def __create_main_menu(self, chosen_group, chat_id, user_id):
+        chat_user_id = "%d %d %d" % (chosen_group, chat_id, user_id)
         keyboard = []
         keyboard.append([
             InlineKeyboardButton("Set Admins",
@@ -128,18 +159,36 @@ Please select the chat you would like to configure.
                                      callback_data="agh sg %d %s" % (i, chat_user_id))])
         prev_next = []
         if offset > offset_diff:
-            prev_next.append(InlineKeyboardButton("<", callback_data="agh sg p %d %s" % (offset - offset_diff)))
+            prev_next.append(InlineKeyboardButton("<", callback_data="agh sg p %d %s" % (offset - offset_diff, chat_user_id)))
         if offset + offset_diff < result.count():
-            prev_next.append(InlineKeyboardButton(">", callback_data="agh sg n %d %s" % (offset + offset_diff)))
+            prev_next.append(InlineKeyboardButton(">", callback_data="agh sg n %d %s" % (offset + offset_diff, chat_user_id)))
         if prev_next:
             keyboard.append(prev_next)
 
         return InlineKeyboardMarkup(keyboard)
 
     def chooseGroupCallback(self, bot, update, groups):
-        offset=0
+        self.logger.debug("choseGroupCallback, %s" % str(groups))
+        if not self.__check_groups_update(groups, update):
+            return
 
-    def chooseGroupSwitchCallback(bot, update, groups):
+        chosen_group = int(groups[0])
+        chat_id = update.effective_chat.id
+        user_id = update.effective_user.id
+
+        self.logger.debug("chosen group %d" % chosen_group)
+        chat_dict = self.group_config.find_one({"group_id": chosen_group})
+        if not chat_dict:
+            update.callback_query.answer("Group not found", show_alert=True)
+            self.logger.warn("Unknown group: %d" % chosen_group)
+            return
+
+        reply_text = self.MAIN_MENU_TEXT % chat_dict["group_title"]
+        next_keyboard = self.__create_main_menu(chosen_group, chat_id, user_id)
+        update.callback_query.edit_message_text(reply_text, reply_markup=next_keyboard)
+        update.callback_query.answer("main menu", show_alert=False)
+
+    def chooseGroupSwitchCallback(self, bot, update, groups):
         self.logger.debug("chooseGroupSwitchCallback")
         if not self.__check_groups_update(groups, update):
             return
@@ -148,7 +197,7 @@ Please select the chat you would like to configure.
                                                   update.effective_user.id,
                                                   next_offset)
 
-        new_text = update.callback_query.edit_message_reply_markup(new_menu)
+        update.callback_query.edit_message_reply_markup(new_menu)
         if update.callback_data.edit_message_reply_markup(new_menu):
             self.logger.debug("Updated chat select")
         else:
@@ -156,13 +205,25 @@ Please select the chat you would like to configure.
         update.callback_query.answer("Next Set")
 
     def setNotificationsCallback(self, bot, update, groups):
-        pass
+        self.logger.debug("setNotificationsCallback %s" % str(groups))
+        self.callback_query.answer("Debug")
 
     def setAdminsCallback(self, bot, update, groups):
-        pass
+        self.logger.debug("setAdminsCallback %s" % str(groups))
+        self.callback_query.answer("Debug")
+
+    def setGroupSettings(self, bot, update, groups):
+        self.logger.debug("setGroupSettings %s" % str(groups))
+        self.callback_query.answer("Debug")
+
+    def setBlacklists(self, bot, update, groups):
+        self.logger.debug("setBlacklists %s" % str(groups))
+        self.callback_query.answer("Debug")
 
     def closeConfigCallback(self, bot, update, groups):
-        pass
+        self.logger.debug("closeConfigCallback" % str(groups))
+        self.callback_query.edit_message_text("Configs saved")
+        self.callback_query.answer("Configs saved")
 
     def welcome_new_chat(self, bot, update):
         """
@@ -188,7 +249,7 @@ Don't need to check it twice.
     def config(self, bot, update):
         user_id = update.effective_user.id
         chat_id = update.effective_chat.id
-        keyboard = self.__createMainMenu(chat_id, user_id)
+        keyboard = self.__create_main_menu(chat_id, user_id)
 
         text = "Config menu for %s %s\n" % (
             update.effective_user.first_name, update.effective_user.last_name)
