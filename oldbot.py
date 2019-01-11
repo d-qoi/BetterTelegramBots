@@ -122,8 +122,8 @@ This bot was created by @YTKileroy
 def statusReceived(bot, update):
     logger.debug("Message Received")
 
-    if update.message.new_chat_member and update.message.new_chat_member.username == bot.username:
-        logger.info("Added To Chat %s (%s)" %(update.message.chat.title, update.message.chat.id))
+    if update.message.new_chat_members and update.message.new_chat_members[0].username == bot.username:
+        logger.info("Added To Chat %s (%s)" % (update.message.chat.title, update.message.chat.id))
         newGroup = dict()
         chat = update.message.chat
         #newGroup['_id'] = chat.id
@@ -134,7 +134,7 @@ def statusReceived(bot, update):
         MDB.groups.update({'_id':chat.id}, newGroup, upsert=True)
         logger.info("Added %s to the group list" % update.message.chat.title)
 
-    elif update.message.new_chat_member:
+    elif update.message.new_chat_members:
         updateGroupData(update)
         logger.info("New member joined the chat.")
         update.message.reply_text(WELCOMETEXT, quote=False)

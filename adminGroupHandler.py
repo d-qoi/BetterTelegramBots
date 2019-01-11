@@ -33,6 +33,7 @@ set_admins menu (agh sa
 
 """
 
+
 class AdminGroupHandler(object):
     BOT = None
     MDB = None
@@ -62,17 +63,17 @@ Main menu for %s
         self.MDB = MDB
         self.DB = dp
 
-        self.master_goroup = self.MDB.admin_group
+        self.master_goroup = self.MDB.master_group
         self.group_config = self.MDB.group_config
 
-        self.gacf = GroupAddCheckFilter(self.admin_group, self.group_config, GroupAddCheckFilter.ADMIN_GROUP)
-        self.cag = CheckAdminGroup(self.admin_group)
+        self.gacf = GroupAddCheckFilter(self.master_group, self.group_config, GroupAddCheckFilter.MASTER_GROUP)
+        self.cag = CheckAdminGroup(self.master_group)
 
         dp.add_handler(MessageHandler(self.gacf,
                                       self.welcome_new_chat),
                        group=2)
 
-        dp.add_handler(MessageHandler(Filters.new_chat_member & self.cag,
+        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & self.cag,
                                       self.welcome_new_member),
                        group=2)
 
@@ -227,18 +228,18 @@ Main menu for %s
 
     def welcome_new_chat(self, bot, update):
         """
-The filter handles checking to make sure the admin_group_link is correct.
+The filter handles checking to make sure the master_group_link is correct.
 Don't need to check it twice.
 """
         message = update.effective_message
         chat = update.effective_chat
-        self.admin_group.find_one_and_update(
+        self.master_group.find_one_and_update(
             {
                 "admin_id": message.from_user.id
             },
             {
                 "group_id": chat.id,
-                "admin_group_link": ""
+                "master_group_link": ""
             })
         self.cag.update_cache_for(chat.id)
         update.reply_text(self.ADMIN_GROUP_WELCOME_TEXT)

@@ -59,15 +59,15 @@ Admin groups:
         dp.add_handler(CommandHandler("setmastergroupplz", self.set_admin_group),
                        group=3)
         dp.add_handler(CommandHandler("get_group_links", self.welcome_new_member,
-                                      filters=mgf,
-                                      group=3))
+                                      filters=mgf),
+                       group=3)
         dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & mgf,
-                                      self.welcome_new_member,
-                                      group=3))
+                                      self.welcome_new_member),
+                       group=3)
         dp.add_handler(CallbackQueryHandler(self.group_link_handler,
                                             pattern="mgh (cal|col) (-?[0-9]+) ([0-9]+)",
-                                            pass_groups=True,
-                                            group=3))
+                                            pass_groups=True),
+                       group=3)
         self.logger.info("Done Initializing")
 
     def _gen_password(self):
