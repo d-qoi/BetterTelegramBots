@@ -76,7 +76,7 @@ Admin groups:
 
     def set_admin_group(self, bot, update):
         self.logger.debug("set_admin_group entered")
-        self.logger.warn("Set_admin_group called")
+        self.logger.warning("Set_admin_group called")
         res = self.MDB.global_config.find_one({})
         if res:
             return
@@ -137,11 +137,13 @@ Admin groups:
         if groups[0] == 'col':
             res = self.admin_group.find_one_and_update({"admin_id": update.effective_user.id},
                                                        {"$set": {"other_group_link": password}},
-                                                       return_document=ReturnDocument.AFTER)
+                                                       return_document=ReturnDocument.AFTER,
+                                                       upsert=False)
         elif groups[0] == 'cal':
             res = self.admin_group.find_one_and_update({"admin_id": update.effective_user.id},
                                                        {"$set": {"admin_group_link": password}},
-                                                       return_document=ReturnDocument.AFTER)
+                                                       return_document=ReturnDocument.AFTER,
+                                                       upsert=False)
         else:
             update.callback_query.message.reply_text("Something went wrong in group_link_handler", quote=False)
             self.logger.error("Something went really wrong in group_link_handler: %s" % str(groups))

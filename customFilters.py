@@ -51,7 +51,7 @@ class GroupAddCheckFilter(BaseFilter):
     name = "Group Add Check Filter"
     pattern = re.compile("^[" + string.digits + string.ascii_letters + "]+$")
 
-    master_group = None
+    admin_group = None
     group_config = None
 
     logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class GroupAddCheckFilter(BaseFilter):
 
     def __init__(self, master_group, group_config, group_type):
         self.logger.debug("Initializing")
-        self.master_group = master_group
+        self.admin_group = master_group
         self.group_config = group_config
         self.group_type = group_type
 
@@ -75,11 +75,12 @@ class GroupAddCheckFilter(BaseFilter):
             return False
         if self.group_config.find_one({"group_id": message.chat.id}):
             return False
-        if self.master_group.find_one({"group_id": message.chat.id}):
+        if self.admin_group.find_one({"group_id": message.chat.id,
+                                      "admin_id": message.from_user.id}):
             return False
 
         self.logger.debug("New Potential Group")
-        res = self.master_group.find_one({"$or":
+        res = self.admin_group.find_one({"$or":
                                           [{"admin_group_link": text},
                                            {"other_group_link": text}],
                                           "admin_id": message.from_user.id})
@@ -89,7 +90,7 @@ class GroupAddCheckFilter(BaseFilter):
         self.logger.info("New Group Added: %s" % str(res))
         self.logger.debug("New Group Chat: %s" % str(message.chat))
 
-        if res["other_group_link"] == text and self.group_type is self.OTHER_GROUP:
+        if res.get("other_group_link") == text and self.group_type is self.OTHER_GROUP:
             gd = {
                 "group_id": message.chat.id,
                 "group_title": message.chat.title,
@@ -99,9 +100,9 @@ class GroupAddCheckFilter(BaseFilter):
             self.logger.debug("New Other Group: %s" % str(gd))
             return True
 
-        elif res['admin_group_link'] == text and self.group_type is self.ADMIN_GROUP:
+        elif res.get('admin_group_link') == text and self.group_type is self.ADMIN_GROUP:
             self.logger.debug("New Admin Group")
-            res = self.master_group.update_one(
+            res = self.admin_group.update_one(
                 {"admin_group_link": text},
                 {"$set": {"group_id": message.chat.id}})
             return True
@@ -114,20 +115,20 @@ class GroupAddCheckFilter(BaseFilter):
 class CheckAdminGroup(BaseFilter):
     name = "Check Admin Group"
 
-    master_group = None
+    admin_group = None
     logger = logging.getLogger(__name__)
     cache = {}
 
     def __init__(self, master_group):
         self.logger.debug("Initializing")
-        self.master_group = master_group
+        self.admin_group = master_group
 
     def check_cache(self, group_id):
         self.logger.debug("checking cache for %d", group_id)
         if group_id in self.cache:
             self.logger.debug("cache hit")
             return self.cache[group_id]
-        self.cache[group_id] = bool(self.master_group.find_one({"group_id": group_id}))
+        self.cache[group_id] = bool(self.admin_group.find_one({"group_id": group_id}))
         self.logger.debug("cache miss")
         return self.cache[group_id]
 

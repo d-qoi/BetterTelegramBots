@@ -4,12 +4,15 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler
 from telegram.ext.filters import Filters
 
+from pymongo import ReturnDocument
+
 from customFilters import GroupAddCheckFilter, CheckAdminGroup
 
 
 # Order of Menus
 """
 /config -> sends select_group inline menu
+/unset_admin_group -- unsets the admin group
 
 select_group inline menu:
 next or previous (agh sg [np] offset chat_id user_id) -> select_group menu
@@ -63,11 +66,11 @@ Main menu for %s
         self.MDB = MDB
         self.DB = dp
 
-        self.master_goroup = self.MDB.master_group
+        self.admin_group = self.MDB.admin_group
         self.group_config = self.MDB.group_config
 
-        self.gacf = GroupAddCheckFilter(self.master_group, self.group_config, GroupAddCheckFilter.MASTER_GROUP)
-        self.cag = CheckAdminGroup(self.master_group)
+        self.gacf = GroupAddCheckFilter(self.admin_group, self.group_config, GroupAddCheckFilter.ADMIN_GROUP)
+        self.cag = CheckAdminGroup(self.admin_group)
 
         dp.add_handler(MessageHandler(self.gacf,
                                       self.welcome_new_chat),
@@ -107,8 +110,10 @@ Main menu for %s
                                             pass_groups=True),
                        group=2)
 
+        self.logger.info("Done Initializing")
+
     def __check_groups_update(groups, update):
-        chat_id = update.effective_chat.id
+        chat_id = update.message.chat.id
         user_id = update.effective_user.id
         if groups[1:] != (str(chat_id), str(user_id)):
             update.callback_query.answer(
@@ -174,7 +179,7 @@ Main menu for %s
             return
 
         chosen_group = int(groups[0])
-        chat_id = update.effective_chat.id
+        chat_id = update.message.chat.id
         user_id = update.effective_user.id
 
         self.logger.debug("chosen group %d" % chosen_group)
@@ -194,7 +199,7 @@ Main menu for %s
         if not self.__check_groups_update(groups, update):
             return
         next_offset = int(groups[0])
-        new_menu = self.__create_chat_select_menu(update.effective_chat.id,
+        new_menu = self.__create_chat_select_menu(update.message.chat.id,
                                                   update.effective_user.id,
                                                   next_offset)
 
@@ -202,7 +207,7 @@ Main menu for %s
         if update.callback_data.edit_message_reply_markup(new_menu):
             self.logger.debug("Updated chat select")
         else:
-            self.logger.warn("Unable to update, something went wrong")
+            self.logger.warning("Unable to update, something went wrong")
         update.callback_query.answer("Next Set")
 
     def setNotificationsCallback(self, bot, update, groups):
@@ -232,25 +237,27 @@ The filter handles checking to make sure the master_group_link is correct.
 Don't need to check it twice.
 """
         message = update.effective_message
-        chat = update.effective_chat
-        self.master_group.find_one_and_update(
-            {
-                "admin_id": message.from_user.id
-            },
-            {
-                "group_id": chat.id,
-                "master_group_link": ""
-            })
+        chat = update.message.chat
+        res = self.admin_group.find_one_and_update(
+                {
+                    "admin_id": message.from_user.id
+                },
+                {"$set": {"group_id": chat.id},
+                 "$unset":{"admin_group_link":""}},
+                return_document=ReturnDocument.AFTER)
+        if not res:
+            self.logger.warning("Unable to find the group document")
         self.cag.update_cache_for(chat.id)
-        update.reply_text(self.ADMIN_GROUP_WELCOME_TEXT)
+        bot.send_message(chat.id, self.ADMIN_GROUP_WELCOME_TEXT)
+        self.logger.info("new chat added")
 
     def welcome_new_member(self, bot, update):
         pass
 
     def config(self, bot, update):
         user_id = update.effective_user.id
-        chat_id = update.effective_chat.id
-        keyboard = self.__create_main_menu(chat_id, user_id)
+        chat_id = update.message.chat.id
+        keyboard = self.__create_chat_select_menu(chat_id, user_id, 0)
 
         text = "Config menu for %s %s\n" % (
             update.effective_user.first_name, update.effective_user.last_name)
