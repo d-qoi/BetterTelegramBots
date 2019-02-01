@@ -72,7 +72,8 @@ group_config:
     "group_title":string,
     "admin_group":int,
     "admin_group_id": object_id
-
+    // config settings
+    "default": Bool
     "welcome": string,
     "rules": string,
     "alerts":[int], # @admin:0, etc

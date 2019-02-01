@@ -55,6 +55,7 @@ If you want this bot to work in your groups remember to add me to the group, or 
 
 Send /config to change settings for all of your chats.
 """
+
 CONFIG_CHAT_SELECT_TEXT = """
 Please select the chat you would like to configure.
 """
@@ -69,6 +70,7 @@ CONFIG_MENU_TEXT = """
 Config menu for %s %s
 
 """
+
 RESET_GROUPS_CONFIRM_TEXT = """
 Reset all groups in the %s network to use default settings?
 
@@ -82,6 +84,13 @@ NETWORK_SELECT_TEXT = """
 Please select the network you would like to open the config menu for.
 """
 
+RESET_GROUP_NO_GROUPS_TEXT = """
+All groups are using default settings.
+"""
+RESET_GROUP_SELECT_GROUP_TEXT = """
+Please select the group you would like to reset.
+"""
+
 CLOSE_CONFIG = InlineKeyboardButton("Close Config Menu", callback_data="agh cc")
 
 HEADER_TEXT = "header text"
@@ -92,6 +101,7 @@ CHAT_ID = "chat_id"
 MESSAGE_ID = "msg_id"
 STATE = "state"
 
+GROUP_LIST_LIMIT = 5
 
 class AdminGroupHandler(object):
     BOT = None
@@ -195,13 +205,27 @@ class AdminGroupHandler(object):
                 else:
                     self.reset_all_confirm(bot, update)
             elif point == "rg":
-                pass
+                self.reset_group_start(bot, update)
             elif point == "gs":
                 pass
             elif point == "as":
                 pass
             else:
-                self.logger.error("something went wrong, expected main menu, got point %s" % point)
+                self.logger.error("main menu error, received point %s" % point)
+                update.callback_query.answer("Something went wrong, please try again.")
+                self.close_config(bot, update)
+
+        elif conversation[STATE] == "rg":
+            if point == "sg":
+                pass
+            elif point == "cg":
+                pass
+            elif point == "ng":
+                pass
+            elif point == "pg":
+                pass
+            else:
+                self.logger.error("reset group error, received point %s" % point)
                 update.callback_query.answer("Something went wrong, please try again.")
                 self.close_config(bot, update)
 
@@ -276,16 +300,82 @@ class AdminGroupHandler(object):
             return
 
         res = self.group_config.update_many({"admin_group_id": agd["_id"]},
-                                            {"$unset": {
-                                                "rules": "",
-                                                "welcome": "",
-                                                "alerts": "",
-                                                "flood_stkr": "",
-                                                "flood msg": "",
-                                                "flood_link": "",
-                                                "flood_image": "",
-                                            }})
+                                            {"$unset":
+                                                {
+                                                     "rules": "",
+                                                     "welcome": "",
+                                                     "alerts": "",
+                                                     "flood_stkr": "",
+                                                     "flood msg": "",
+                                                     "flood_link": "",
+                                                     "flood_image": ""
+                                                 },
+                                            "$set":
+                                                {
+                                                    "default": True
+                                                }
+                                            })
+
         self.create_main_menu(bot, update, extra_text=RESET_GROUPS_CONFIRMATION)
+
+    def reset_group_start(self, bot, update):
+        """
+        Reset group menu start:
+        Sets conversation state to rg
+        :param bot:
+        :param update:
+        :return:
+        """
+        self.logger.debug("reset_group_start called")
+
+        user_id = update.callback_query.from_user.id
+        chat_id = update.callback_query.message.chat.id
+        msg_id = update.callback_query.message.id
+        data = self.conversation_data[(msg_id, chat_id)]
+
+        data[STATE] = "rg"
+        keyboard = []
+
+        agd = self.admin_group.find_one({"admins": user_id,
+                                         "network": data[NETWORK]})
+        if not agd:
+            self.close_config(bot, update)
+            return
+
+        res = self.group_config.find({"admin_group_id": agd["_id"],
+                                      "default": True}).sort("group_title", 1)
+        res = list(res)
+        if not len(res):
+            self.create_main_menu(bot, update, extra_text=RESET_GROUP_NO_GROUPS_TEXT)
+            return
+
+        if len(res) <= GROUP_LIST_LIMIT:
+            for i in range(len(res)):
+                keyboard.append([
+                    InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
+                ])
+        else:
+            for i in range(GROUP_LIST_LIMIT):
+                keyboard.append([
+                    InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
+                ])
+            keyboard.append([
+                InlineKeyboardButton("Next Set", "agh ng")
+            ])
+
+        data[TEXT] = RESET_GROUP_SELECT_GROUP_TEXT
+        text = data[HEADER_TEXT] + data[TEXT]
+        update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    def reset_group_select_group(self, bot, update, groups):
+        """
+        Create the confirmation menu for resetting groups
+        Does not change state.
+        :param bot: The bot
+        :param update: The update to process
+        :param groups: The groups from the callback query matching regex
+        :return: None
+        """
 
     def close_config(self, bot, update):
         pass
