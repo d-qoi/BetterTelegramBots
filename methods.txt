@@ -65,15 +65,16 @@ Main Menu for Admin Groups
 
 Database:
 
-/// General groups
+/// General groups, if null default to admin group settings
 group_config:
 {
     "group_id":int,
     "group_title":string,
-    "master_group":int,
+    "admin_group":int,
+    "admin_group_id": object_id
+
     "welcome": string,
     "rules": string,
-    "admins": [int],
     "alerts":[int], # @admin:0, etc
     "flood_stkr":int,
     "flood_msg":int,
@@ -85,10 +86,12 @@ group_config:
 admin_group:
 {
     "group_id":int,
-    "admin_id":int,
+    "master_admin_id":int,
     "admin_group_link":string,
     "other_group_link":string,
+    "network": string,
     "link_msg_id":int
+    "admins": [ids] contains master_admin
 }
 
 bots:

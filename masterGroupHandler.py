@@ -30,7 +30,7 @@ You will need to create a new code to add another group, and you need to send th
 
 Only one admin per bot network should be in this chat. If that admin needs to change, talk to @ytkileroy.
 
-
+Your network: %s
 
 Admin Group Link: %s
 Other Group Link: %s
@@ -84,7 +84,7 @@ Admin groups:
             "group": update.effective_chat.id
             })
         update.message.reply_text("Master Group Set")
-        self.logger.warn("master group set to: %s" % str(update.effective_chat))
+        self.logger.warning("master group set to: %s" % str(update.effective_chat))
 
     def welcome_new_member(self, bot, update):
         self.logger.debug("welcome_new_member entered")
@@ -96,9 +96,15 @@ Admin groups:
             self.logger.debug("effective_user")
         self.logger.info("welcome_new_member called for: %s" % str(user))
 
+        if user.username:
+            network = "%s's network" % user.username
+        else:
+            network = "%s %s network" % (user.first_name, user.last_name)
+
         res = self.admin_group.find_one({"admin_id": user.id})
         if not res:
-            res = {"admin_id": user.id}
+            res = {"admin_id": user.id,
+                   "network": network}
             self.admin_group.insert_one(res)
         else:
             if 'link_msg_id' in res:
@@ -109,15 +115,16 @@ Admin groups:
         text = self.WELCOMETEXT % (self.bot.name,
                                    user.first_name,
                                    user.last_name,
+                                   network,
                                    res.get('admin_group_link', ''),
                                    res.get('other_group_link', ''))
 
         chat_user_id = "%d %d" % (update.effective_chat.id, user.id)
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Create Admin Group Link",
-                                  callback_data="mgh cal %s" % (chat_user_id))],
+                                  callback_data="mgh cal %s" % chat_user_id)],
             [InlineKeyboardButton("Create Other Group Link",
-                                  callback_data="mgh col %s" % (chat_user_id))]])
+                                  callback_data="mgh col %s" % chat_user_id)]])
         new_msg = update.message.reply_text(text, reply_markup=markup)
 
         res = self.admin_group.update_one({"admin_id": user.id},
@@ -147,6 +154,8 @@ Admin groups:
         else:
             update.callback_query.message.reply_text("Something went wrong in group_link_handler", quote=False)
             self.logger.error("Something went really wrong in group_link_handler: %s" % str(groups))
+            res = None
+
         if not res:
             update.callback_query.message.reply_text("No admin_group found for group.", quote=False)
             self.logger.error("No admin_group found for user clocking link: %s" % str(update.effective_user))
@@ -156,13 +165,14 @@ Admin groups:
         text = self.WELCOMETEXT % (self.bot.name,
                                    update.effective_user.first_name,
                                    update.effective_user.last_name,
+                                   res["network"],
                                    res.get('admin_group_link', ''),
                                    res.get('other_group_link', ''))
         chat_user_id = "%d %d" % (update.effective_chat.id, update.effective_user.id)
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Create Admin Group Link",
-                                  callback_data="mgh cal %s" % (chat_user_id))],
+                                  callback_data="mgh cal %s" % chat_user_id)],
             [InlineKeyboardButton("Create Other Group Link",
-                                  callback_data="mgh col %s" % (chat_user_id))]])
+                                  callback_data="mgh col %s" % chat_user_id)]])
         update.callback_query.message.edit_text(text, reply_markup=markup)
         update.callback_query.answer()
