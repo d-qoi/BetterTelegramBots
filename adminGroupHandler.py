@@ -51,7 +51,8 @@ set_admins menu (agh sa
 ADMIN_GROUP_WELCOME_TEXT = """
 This group is now set as an admin group.
 
-If you want this bot to work in your groups remember to add me to the group, or add your own bot and send the bot's code to me.
+If you want this bot to work in your groups remember to add me to the group.
+Or add your own bot and send the bot's code to me with /add_bot_to_network
 
 Send /config to change settings for all of your chats.
 """
@@ -199,16 +200,16 @@ class AdminGroupHandler(object):
             self.create_main_menu(bot, update)
 
         elif conversation[STATE] == "mm":
-            if point == "ra":
+            if point == "ra":  # reset all
                 if groups(1):
                     self.reset_all(bot, update)
                 else:
                     self.reset_all_confirm(bot, update)
-            elif point == "rg":
+            elif point == "rg":  # reset group
                 self.reset_group_start(bot, update)
-            elif point == "gs":
+            elif point == "gs":  # Group settings
                 pass
-            elif point == "as":
+            elif point == "as":  # all settings
                 pass
             else:
                 self.logger.error("main menu error, received point %s" % point)
@@ -216,14 +217,12 @@ class AdminGroupHandler(object):
                 self.close_config(bot, update)
 
         elif conversation[STATE] == "rg":
-            if point == "sg":
-                pass
-            elif point == "cg":
-                pass
-            elif point == "ng":
-                pass
-            elif point == "pg":
-                pass
+            if point == "sg":  # select group
+                self.reset_group_select_group(bot, update, groups)
+            elif point == "cg":  # choose group
+                self.reset_group_choose_group(bot, update, groups)
+            elif point == "ns":  # next set (group 1 is next multiple of GROUP_LIST_LIMIT)
+                self.reset_group_next_set(bot, update, groups)
             else:
                 self.logger.error("reset group error, received point %s" % point)
                 update.callback_query.answer("Something went wrong, please try again.")
@@ -332,6 +331,7 @@ class AdminGroupHandler(object):
         chat_id = update.callback_query.message.chat.id
         msg_id = update.callback_query.message.id
         data = self.conversation_data[(msg_id, chat_id)]
+        self.logger.debug("Current Data: %s" % str(data))
 
         data[STATE] = "rg"
         keyboard = []
@@ -349,7 +349,7 @@ class AdminGroupHandler(object):
             self.create_main_menu(bot, update, extra_text=RESET_GROUP_NO_GROUPS_TEXT)
             return
 
-        if len(res) <= GROUP_LIST_LIMIT:
+        if len(res) < GROUP_LIST_LIMIT:
             for i in range(len(res)):
                 keyboard.append([
                     InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
@@ -360,11 +360,13 @@ class AdminGroupHandler(object):
                     InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
                 ])
             keyboard.append([
-                InlineKeyboardButton("Next Set", "agh ng")
+                InlineKeyboardButton("Next", callback_data="agh ns1") # the number is the next multiple of GROUP_LIST_LIMIT
             ])
+        keyboard.append([CLOSE_CONFIG])
 
         data[TEXT] = RESET_GROUP_SELECT_GROUP_TEXT
         text = data[HEADER_TEXT] + data[TEXT]
+        update.callback_query.answer("Please select the group you would like to reset")
         update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
     def reset_group_select_group(self, bot, update, groups):
@@ -373,9 +375,168 @@ class AdminGroupHandler(object):
         Does not change state.
         :param bot: The bot
         :param update: The update to process
-        :param groups: The groups from the callback query matching regex
+        :param groups: (callback switch, index in the sorted list of groups)
         :return: None
         """
+        self.logger.debug("reset_group_select_group called")
+
+        user_id = update.callback_query.from_user.id
+        chat_id = update.callback_query.message.chat.id
+        msg_id = update.callback_query.message.id
+        data = self.conversation_data[(msg_id, chat_id)]
+
+        keyboard = []
+
+        agd = self.admin_group.find_one({"admins": user_id,
+                                         "network": data[NETWORK]})
+        if not agd:
+            self.close_config(bot, update)
+            return
+
+        res = self.group_config.find({"admin_group_id": agd["_id"],
+                                      "default": True}).sort("group_title", 1)
+        res = list(res)
+
+        selected = int(groups[1])
+        offset_multiple = selected//GROUP_LIST_LIMIT
+        start = offset_multiple*GROUP_LIST_LIMIT
+        stop = start + GROUP_LIST_LIMIT
+
+        self.logger.debug("Number of groups: %d" % len(res))
+        self.logger.debug("Selected: %d" % selected)
+        self.logger.debug("offset_multiple: %d" % offset_multiple)
+        self.logger.debug("start: %d" % start)
+
+        for i in range(offset_multiple*GROUP_LIST_LIMIT, stop if stop < len(res) else len(res)):
+            if i == selected:
+                keyboard.append([
+                    InlineKeyboardButton("Confirm", callback_data="agh cg%d" % i),
+                    InlineKeyboardButton("Cancel", callback_data="agh ns%d" % offset_multiple)
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
+                ])
+
+        tail = []
+        if len(res) >= stop:
+            tail.append(InlineKeyboardButton("Next", callback_data="agh ns%d" % (offset_multiple+1)))
+        if offset_multiple > 0:
+            tail.append(InlineKeyboardButton("Previous", callback_data="agh ns%d" % (offset_multiple-1)))
+        if tail:
+            keyboard.append(tail)
+        keyboard.append([CLOSE_CONFIG])
+
+        update.callback_query.answer("Are you sure?")
+        update.callback_query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
+
+    def reset_group_choose_group(self, bot, update, groups):
+        """
+        Takes a chosen group and will reset it to the default settings.
+        Does not change state
+        Calls reset_group_next_set if successful
+        :param bot: Reference to the bot
+        :param update: The update to process
+        :param groups:  (callback switch, index in the sorted list of groups)
+        :return: None
+        """
+        self.logger.debug("reset_group_select_group called")
+
+        user_id = update.callback_query.from_user.id
+        chat_id = update.callback_query.message.chat.id
+        msg_id = update.callback_query.message.id
+        data = self.conversation_data[(msg_id, chat_id)]
+        self.logger.debug("Current Data: %s" % str(data))
+
+        selected = int(groups[1])
+        agd = self.admin_group.find_one({"admins": user_id,
+                                         "network": data[NETWORK]})
+        if not agd:
+            self.close_config(bot, update)
+            return
+
+        res = self.group_config.find({"admin_group_id": agd["_id"],
+                                      "default": True}).sort("group_title", 1)
+        res = list(res)
+
+        update_result = self.group_config.update_one(
+            {"admin_group_id": agd["_id"],
+             "group_title": res[selected]['group_title']},
+            {'$unset': {'rules': '',
+                        'welcome': '',
+                        'alerts': '',
+                        'flood_stkr': '',
+                        'flood msg': '',
+                        'flood_link': '',
+                        'flood_image': ''},
+             '$set': {'default': True}}
+        )
+
+        if not update_result.modified_count:
+            update.callback_query.answer("No Groups Reset.")
+            self.logger.warning("Reset for %s in network %s (%d) not successful." % (res[selected]['group_title'],
+                                                                                     data[NETWORK],
+                                                                                     agd["_id"]))
+        else:
+            update.callback_query.answer("Group Reset")
+            self.logger.info("Reset for %s in network %s successful." % (res[selected]['group_title'],
+                                                                         data[NETWORK]))
+
+        groups[1] = str(selected//GROUP_LIST_LIMIT)
+        self.reset_group_next_set(bot, update, groups)
+
+    def reset_group_next_set(self, bot, update, groups):
+        """
+        Next set of groups for reset groups menu:
+        :param bot: The bot
+        :param update: The update to process
+        :param groups: (callback switch, next offset for the list)
+        :return:
+        """
+        self.logger.debug("reset_group_next_set")
+
+        user_id = update.callback_query.from_user.id
+        chat_id = update.callback_query.message.chat.id
+        msg_id = update.callback_query.message.id
+        data = self.conversation_data[(msg_id, chat_id)]
+        self.logger.debug("conversation data: %s" % str(data))
+
+        keyboard = []
+
+        agd = self.admin_group.find_one({"admins": user_id,
+                                         "network": data[NETWORK]})
+        if not agd:
+            self.close_config(bot, update)
+            return
+
+        res = self.group_config.find({"admin_group_id": agd["_id"],
+                                      "default": True}).sort("group_title", 1)
+        res = list(res)
+
+        offset_multiple = int(groups[1])
+        start = offset_multiple * GROUP_LIST_LIMIT
+        stop = start + GROUP_LIST_LIMIT
+
+        self.logger.debug("Number of groups: %d" % len(res))
+        self.logger.debug("offset_multiple: %d" % offset_multiple)
+        self.logger.debug("start: %d" % start)
+
+        for i in range(offset_multiple * GROUP_LIST_LIMIT, stop if stop < len(res) else len(res)):
+            keyboard.append([
+                InlineKeyboardButton(res[i]["group_title"], callback_data="agh sg%d" % i)
+            ])
+
+        tail = []
+        if len(res) >= stop:
+            tail.append(InlineKeyboardButton("Next", callback_data="agh ns%d" % (offset_multiple + 1)))
+        if offset_multiple > 0:
+            tail.append(InlineKeyboardButton("Previous", callback_data="agh ns%d" % (offset_multiple - 1)))
+        if tail:
+            keyboard.append(tail)
+        keyboard.append([CLOSE_CONFIG])
+
+        update.callback_query.answer("")
+        update.callback_query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
 
     def close_config(self, bot, update):
         pass
