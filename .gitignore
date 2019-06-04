@@ -89,6 +89,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+ptb-venv/
 
 # Spyder project settings
 .spyderproject
@@ -106,3 +107,6 @@ venv.bak/
 #emacs
 *~
 #*#
+
+#pycharm
+.idea/
