@@ -7,7 +7,7 @@ from uuid import uuid4
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, MessageHandler, \
@@ -56,7 +56,7 @@ def setupMenu(bot, update):
 
     menu = [
         [InlineKeyboardButton("Create Gate", callback_data=MENU_CREATE)],
-        [InlineKeyboardButton("Edit Gate", callback_data=MENU_UPDATE)],
+        [InlineKeyboardButton("Update Gate Link", callback_data=MENU_UPDATE)],
         [InlineKeyboardButton("Delete Gate", callback_data=MENU_DELETE)],
         [InlineKeyboardButton("Close", callback_data=MENU_CLOSE)]
     ]
@@ -66,7 +66,7 @@ def setupMenu(bot, update):
     mdb_prev_message = MDB.state.find_one({"chat_id": chat_id})
     if mdb_prev_message is not None:
         logger.debug("removing old message")
-        bot.delete_message(chat_id, mdb_prev_message.msg_id)
+        bot.delete_message(chat_id, mdb_prev_message['msg_id'])
         MDB.state.delete_one({"chat_id": chat_id})
 
     new_message = bot.sendMessage(chat_id, "Gateway config menu for %s" % update.effective_chat.title, reply_markup=keyboard)
@@ -109,7 +109,7 @@ def setupMenuCallbackHandler(bot, update):
                 return
 
             elif data == MENU_CREATE:
-                query.anser("Creating new Gateway")
+                query.answer("Creating new Gateway")
                 num_gates = MDB.gates.count_documents({"chat_id": chat_id})
 
                 if num_gates >= 10:
@@ -120,7 +120,7 @@ def setupMenuCallbackHandler(bot, update):
                     return
 
                 bot.edit_message_text(
-                    "Please send me the name of the new gateway (not inline)",
+                    "Please send me the name of the new gateway",
                     chat_id=chat_id, message_id=message_id)
                 MDB.state.update_one({"chat_id": chat_id},
                                      {"$set": {"state": MENU_CREATE,
@@ -130,14 +130,16 @@ def setupMenuCallbackHandler(bot, update):
 
             elif data == MENU_UPDATE:
                 gateways = MDB.gates.find({"chat_id": chat_id})
-                if gateways is None:
-                    query.anser("Please create a gateway first")
-                    return
                 gateways = gateways.sort("text", DESCENDING)
 
                 keyboard = []
                 for gate in gateways:
-                    keyboard.append([InlineKeyboardButton(gate.text, callback_data="m%d" % gate.time)])
+                    keyboard.append([InlineKeyboardButton(gate['text'], callback_data="m%d" % gate['time'])])
+
+                if not keyboard:
+                    query.anser("Please create a gateway first")
+                    return
+
                 markup = InlineKeyboardMarkup(keyboard)
 
                 query.answer("Please select the gate")
@@ -160,7 +162,7 @@ def setupMenuCallbackHandler(bot, update):
 
                 keyboard = []
                 for gate in gateways:
-                    keyboard.append([InlineKeyboardButton(gate.text, callback_data="m%d" % gate.time)])
+                    keyboard.append([InlineKeyboardButton(gate['text'], callback_data="m%d" % gate['time'])])
                 markup = InlineKeyboardMarkup(keyboard)
 
                 query.answer("Please select the gate")
@@ -277,7 +279,7 @@ def createGateway(bot, update):
 
     keyboard = []
     for gate in gateways:
-        keyboard.append([InlineKeyboardButton(text=gate.title, callback_data=str(gate.time))])
+        keyboard.append([InlineKeyboardButton(text=gate['text'], callback_data=str(gate['time']))])
 
     if not keyboard:
         update.message.reply_text("Create a few Gateways first with /setup",
@@ -299,14 +301,66 @@ def gatewayCallbackHandler(bot, update):
     user_id = query.from_user.id
 
     gate = MDB.gates.find_one({"chat_id": chat_id, "time": data})
-    if gate and gate.link is not None:
-        query.answer(url=gate['link'])
+    MDB.expected_users.update_one({"user_id": user_id}, {"$set": {"gate_id": gate["_id"]}},
+                                  upsert=True)
+    if gate and gate['link'] is not None:
+        url = "https://t.me/%s?start=%d" % (bot.name[1:], gate['time'])
+        logger.info(url)
+        query.answer("Please work!", url=url)
+
         return
     query.answer("No link found")
 
 
+def deleteMessageJob(bot, job):
+    bot.delete_message(**job.context)
+
+
+def startMessageHandler(bot, update, job_queue, args):
+    logger.debug("start message called")
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+
+    logger.debug(str(args))
+
+    if not args:
+        helpMessage(bot, update)
+        return
+
+    user = MDB.expected_users.find_one({"user_id": user_id})
+    gate = MDB.gates.find_one({"_id": user['gate_id']})
+    logger.debug("user %s" % str(user))
+    logger.debug("Gate %s" % str(gate))
+
+    if gate:
+        msg = update.message.reply_text("%s\n\n%s" % (gate['text'], gate['link']),
+                                        quote=False)
+        job_queue.run_once(deleteMessageJob, 60, {"chat_id": chat_id, "message_id": msg.message_id})
+
+
 def helpMessage(bot, update):
-    pass
+    update.message.reply_text("""
+This bot was designed to work around the fact that Telegram now allows public groups to be seen without a telegram account.
+The previous method to mitigate bots was to create a "gateway" chat, a chat with a public link that had a pinned message containing a changable link to a larger chat.
+This now does not do enough.
+
+This bot allows you to hide links behind an inline button, and change the links without ever needing to post them into a gateway chat.
+
+To use the bot, calling /setup in a chat will create a menu. Clicking on the 'Create gate' button will prompt you to send a text message to the chat with the title of the gateway you want to use.
+If that does not seem to be working, reply to any of the bots message. This forces the bot to receive it. There is a limit of 10 gates per chat.
+
+After creating the message, you will need to update the link via the menu. After clicking the "Update Gate Link" button and choosing the gate you want to update, you will need to send an inline message to the bot.
+To do this, click the inline button that says "To Inline Mode" and it will fill in your text area with the bot's username. Do Not Delete the username, just start typing after, either sending a @username or a t.me link. You can paste the links or usernames into the text field after the username.
+After you have finished entering text, the bot should show only one response, it will have identified the @username or https://t.me/... (the https:// is necessary). Click that response and you will send a saved confirmation.
+Feel free to delete the confirmation message, it is just there for to show that everything is finished.
+
+To change a gate title, you will need to delete and recreate it.
+
+Updating a gate does not need you will need to recreate the gateway message. The bot will update the inline buttons for you.
+
+To use the gateway. you will click on the gate you want to use. The bot will bring you to it's own chat with you, and ask you to send it /start. 
+After sending /start or clicking the /start button, you will get a message with the title of the gateway and the link that comes with it.
+The message with the link and title will only exist for 1 minute. After that you will need to go back to the gateway message and click the inline button again.""")
 
 
 username_pattern = re.compile("@(\w{5,})")
@@ -369,12 +423,10 @@ def chosenInlineQuery(bot, update):
 
     res = MDB.state.find_one({"state": MENU_LINK,
                               "active_user": user_id})
-    MDB.gates.update_one({"_id": res['_id']},
-                         {"$set": {
-                             "link": link
-                         }})
-    bot.delete_message(chat_id=res['chat_id'], message_id=res['msg_id'])
-    MDB.state.delete_one({"chat_id": res['chat_id']})
+    if res:
+        MDB.gates.update_one({"_id": res['active_gate']}, {"$set": {"link": link}})
+        bot.delete_message(chat_id=res['chat_id'], message_id=res['msg_id'])
+        MDB.state.delete_one({"chat_id": res['chat_id']})
 
 
 def main():
@@ -389,6 +441,8 @@ def main():
     dp.add_handler(CommandHandler("create_gateway", createGateway, filters=Filters.group))
     dp.add_handler(CommandHandler("setup", setupMenu, filters=Filters.group))
     dp.add_handler(CommandHandler("help", helpMessage, filters=Filters.private))
+    dp.add_handler(CommandHandler('start', startMessageHandler, filters=Filters.private,
+                                  pass_job_queue=True, pass_args=True))
     dp.add_handler(MessageHandler(Filters.text, setupMenuTextHandler))
 
     updater.start_polling()
