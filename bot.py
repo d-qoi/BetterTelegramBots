@@ -207,6 +207,7 @@ def setupMenuCallbackHandler(bot, update):
         markup = InlineKeyboardMarkup(keyboard)
         bot.edit_message_text("""
 Please send the bot a @username or https://t.me/... link via an inline query.
+To use an inline query, you leave the username of this bot in the text field and type the @username or t.me link after the bot's username.
 The query results will update to say it found a username or link. 
 After you have completed typing, click on the query response to alert the bot that you are done.
 Feel free to delete the message you send via the bot after you are done with the inline bot.""",
