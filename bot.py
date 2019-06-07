@@ -87,10 +87,11 @@ def setupMenu(bot, update):
 
 @run_async
 def setupMenuCallbackHandler(bot, update):
-    logger.debug("Menu Callback Hit")
+    logger.info("Menu Callback Hit")
     query = update.callback_query
     data = query.data
     logger.debug("Data: %s" % data)
+    logger.debug("callback_query: %s" % str(query))
     chat_id = query.message.chat.id
     message_id = query.message.message_id
     user_id = query.from_user.id
@@ -209,7 +210,8 @@ def setupMenuCallbackHandler(bot, update):
 Please send the bot a @username or https://t.me/... link via an inline query.
 To use an inline query, you leave the username of this bot in the text field and type the @username or t.me link after the bot's username.
 The query results will update to say it found a username or link. 
-After you have completed typing, click on the query response to alert the bot that you are done.
+After you have completed typing, click on the query response to alert the bot that you are done. 
+Only the person who clicked "update gateway" will be able update the gateway. Other inline responses will be ignored.
 Feel free to delete the message you send via the bot after you are done with the inline bot.""",
                               chat_id=chat_id, message_id=message_id, reply_markup=markup)
         MDB.state.update_one({"chat_id": chat_id},
@@ -283,7 +285,7 @@ def setupMenuTextHandler(bot, update):
 
 @run_async
 def createGateway(bot, update):
-    logger.debug("MenuTextHandler called")
+    logger.debug("Create Gateway called")
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
@@ -313,12 +315,13 @@ def createGateway(bot, update):
 
 @run_async
 def gatewayCallbackHandler(bot, update):
-    logger.debug("gateway callback handler called")
+    logger.info("gateway callback handler called")
     query = update.callback_query
     data = int(query.data)
     logger.debug("Data: %s" % data)
     chat_id = query.message.chat.id
     user_id = query.from_user.id
+    logger.debug("Gateway callback from %s (%d) from user %d" % (query.message.chat.title, chat_id, user_id))
 
     gate = MDB.gates.find_one({"chat_id": chat_id, "time": data})
 
@@ -331,21 +334,29 @@ def gatewayCallbackHandler(bot, update):
 
         users_to_alert = MDB.alerts.find({"chat_id": gate['chat_id']})
         for user in users_to_alert:
-            bot.send_message(user['user_id'], "User: %s %s (%s: %d) clicked gateway %s (%s)" % (
-                update.effective_user.first_name or '',
-                update.effective_user.last_name or '',
-                update.effective_user.username or '',
-                update.effective_user.id,
-                gate['text'],
-                gate['link']
-            ), disable_web_page_preview=True)
-
+            try:
+                bot.send_message(user['user_id'], "User: %s %s (%s: %d) clicked gateway '%s' (%s) from group '%s' (%d)" % (
+                    update.effective_user.first_name or '',
+                    update.effective_user.last_name or '',
+                    update.effective_user.username or '',
+                    update.effective_user.id,
+                    gate['text'],
+                    gate['link'],
+                    query.message.chat.title,
+                    chat_id
+                ), disable_web_page_preview=True)
+            except BadRequest as e:
+                logger.warning("Admin stopped bot, alert for inline button not sent.")
         return
     query.answer("No link found")
 
 
 def deleteMessageJob(bot, job):
-    bot.delete_message(**job.context)
+    try:
+        bot.delete_message(**job.context)
+    except BadRequest:
+        logger.warning("Deleting Message for %s failed, bot stopped or message deleted already")
+
 
 alert_patern = re.compile("alert_(-?[0-9]+)")
 @run_async
@@ -384,14 +395,17 @@ def startMessageHandler(bot, update, job_queue, args):
 
     users_to_alert = MDB.alerts.find({"chat_id": gate['chat_id']})
     for user in users_to_alert:
-        bot.send_message(user['user_id'], "User: %s %s (%s: %d) received link for %s (%s)" % (
-            update.effective_user.first_name or '',
-            update.effective_user.last_name or '',
-            update.effective_user.username or '',
-            update.effective_user.id,
-            gate['text'],
-            gate['link']
-        ), disable_web_page_preview=True)
+        try:
+            bot.send_message(user['user_id'], "User: %s %s (%s: %d) received link for %s (%s)" % (
+                update.effective_user.first_name or '',
+                update.effective_user.last_name or '',
+                update.effective_user.username or '',
+                update.effective_user.id,
+                gate['text'],
+                gate['link']
+            ), disable_web_page_preview=True)
+        except BadRequest as e:
+            logger.warning("Admin stopped bot, alert for /start not sent.")
     logger.debug("user %s" % str(user))
     logger.debug("Gate %s" % str(gate))
 
