@@ -1,25 +1,30 @@
 import logging
-import sqlite3
-import sys
 
 from sql_queries import *
-from pyrogram import Client, Filters
+from tel_client import TelClient
+from threaded_sqlite import ThreadedSqlite
 
-logger = logging.getLogger("root")
-sf = logging.StreamHandler(sys.stdout).setFormatter(
-    logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-)
-logger.addHandler(sf)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.WARNING,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M')
 
-connection = sqlite3.connect("data/messages.db")
-cursor = connection.cursor()
-cursor.executescript('\n'.join([
-    CREATE_TABLE_USER,
-    CREATE_TABLE_MESSAGE,
-    CREATE_TABLE_TEXT_MESSAGE,
-    CREATE_TABLE_FORWARDED_MESSAGE,
-]))
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+sql = ThreadedSqlite("data/messages.db")
 
 
+sql.execute(CREATE_TABLE_USER)
+sql.execute(CREATE_TABLE_MESSAGE)
+sql.execute(CREATE_TABLE_TEXT_MESSAGE)
+sql.execute(INSERT_USER, (-1, "DELETED", "DELETED", "ACCOUNT"))
 
+
+logger.info("Starting")
+logger.debug("Starting")
+
+telclient = TelClient(sql)
+telclient.app.run()
+
+sql.commit()
+sql.close()
