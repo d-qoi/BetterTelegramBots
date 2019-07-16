@@ -51,11 +51,12 @@ CREATE TABLE IF NOT EXISTS file_messages (
     file_name TEXT,
     mime_type TEXT,
     date INTEGER,
+    caption TEXT,
     FOREIGN KEY (message) REFERENCES messages (message_id)
 );"""
 
 INSERT_FILE = """
-INSERT INTO file_messages values(?,?,?,?,?);
+INSERT INTO file_messages values(?,?,?,?,?,?);
 """
 
 CREATE_TABLE_CONTACT_MESSAGE = """
@@ -77,11 +78,10 @@ INSERT INTO contacts values(?,?,?,?,?,?);
 CREATE_TABLE_LOCATION = """
 CREATE TABLE IF NOT EXISTS locations (
     message INTEGER,
-    loc_id INTEGER NOT NULL AUTO_INCREMENT,
+    loc_id INTEGER PRIMARY KEY AUTOINCREMENT,
     lat REAL,
-    long REAL,
-    FOREIGN KEY (message) REFERENCES messages (message_id),
-    PRIMARY KEY (loc_id)
+    lon REAL,
+    FOREIGN KEY (message) REFERENCES messages (message_id)
 );"""
 
 INSERT_LOCATION = """

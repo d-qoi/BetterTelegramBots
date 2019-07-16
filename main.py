@@ -17,7 +17,13 @@ sql = ThreadedSqlite("data/messages.db")
 sql.execute(CREATE_TABLE_USER)
 sql.execute(CREATE_TABLE_MESSAGE)
 sql.execute(CREATE_TABLE_TEXT_MESSAGE)
+sql.execute(CREATE_TABLE_LOCATION)
+sql.execute(CREATE_TABLE_CONTACT_MESSAGE)
+sql.execute(CREATE_TABLE_FILE_MESSAGE)
+sql.execute(CREATE_TABLE_OTHER_MESSAGE)
+sql.execute(CREATE_TABLE_VENUE)
 sql.execute(INSERT_USER, (-1, "DELETED", "DELETED", "ACCOUNT"))
+logger.debug("Last Row ID: %d" % sql.last_row_id())
 
 
 logger.info("Starting")
